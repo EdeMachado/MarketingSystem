@@ -15,6 +15,10 @@ import { segmentRoutes } from './routes/segment.routes';
 import { exportRoutes } from './routes/export.routes';
 import { templateLibraryRoutes } from './routes/templates.routes';
 import { configRoutes } from './routes/config.routes';
+import { companySearchRoutes } from './routes/company-search.routes';
+import { templateGeneratorRoutes } from './routes/template-generator.routes';
+import { automationRoutes } from './routes/automation.routes';
+import { apiConfigRoutes } from './routes/api-config.routes';
 import { schedulerService } from './services/scheduler.service';
 import { errorHandler } from './middlewares/errorHandler';
 
@@ -48,6 +52,10 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/api/segments', segmentRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/company-search', companySearchRoutes);
+app.use('/api/template-generator', templateGeneratorRoutes);
+app.use('/api/automation', automationRoutes);
+app.use('/api/api-config', apiConfigRoutes);
 
 // Carregar campanhas agendadas na inicialização
 schedulerService.loadScheduledCampaigns().catch(console.error);

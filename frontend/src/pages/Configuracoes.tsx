@@ -3,6 +3,12 @@ import { useQuery } from 'react-query';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 
+interface ApiStatus {
+  configured: boolean;
+  connected?: boolean;
+  message: string;
+}
+
 export default function Configuracoes() {
   const [testing, setTesting] = useState(false);
 
@@ -13,6 +19,11 @@ export default function Configuracoes() {
 
   const { data: envConfig } = useQuery('env-config', async () => {
     const res = await api.get('/config/env');
+    return res.data.data;
+  });
+
+  const { data: apiStatus } = useQuery<Record<string, ApiStatus>>('api-status', async () => {
+    const res = await api.get('/api-config/status');
     return res.data.data;
   });
 
@@ -36,9 +47,42 @@ export default function Configuracoes() {
   return (
     <div className="px-4 py-6 sm:px-0">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Configurações SMTP</h2>
-        <p className="text-gray-600 mt-2">Configure seu servidor de email para enviar campanhas</p>
+        <h2 className="text-3xl font-bold text-gray-900">Configurações do Sistema</h2>
+        <p className="text-gray-600 mt-2">Configure todas as integrações e APIs do sistema</p>
       </div>
+
+      {/* Status de Todas as APIs */}
+      {apiStatus && (
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Status das Integrações</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(apiStatus).map(([key, status]) => (
+              <div
+                key={key}
+                className={`border-2 rounded-lg p-4 ${
+                  status.configured && status.connected
+                    ? 'border-green-300 bg-green-50'
+                    : status.configured
+                    ? 'border-yellow-300 bg-yellow-50'
+                    : 'border-gray-300 bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</h4>
+                  <span className="text-2xl">
+                    {status.configured && status.connected
+                      ? '✅'
+                      : status.configured
+                      ? '⚠️'
+                      : '❌'}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">{status.message}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Status SMTP */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">

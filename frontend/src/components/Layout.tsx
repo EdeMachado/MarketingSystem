@@ -10,10 +10,12 @@ export default function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
+    { path: '/buscar-empresas', label: 'Buscar Empresas', icon: '🔍' },
     { path: '/campanhas', label: 'Campanhas', icon: '📧' },
+    { path: '/automacoes', label: 'Automações', icon: '⚙️' },
     { path: '/contatos', label: 'Contatos', icon: '👥' },
     { path: '/templates', label: 'Templates', icon: '📝' },
-    { path: '/configuracoes', label: 'Configurações SMTP', icon: '⚙️' },
+    { path: '/configuracoes', label: 'Configurações', icon: '🔧' },
   ];
 
   return (
