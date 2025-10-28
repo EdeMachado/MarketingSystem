@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "config-api-key": "node criar-api-key.js",
+    "test-api-key": "node criar-api-key-auto.js"
   },
   "keywords": ["marketing", "email", "whatsapp", "social-media"],
   "author": "EdeMachado",
