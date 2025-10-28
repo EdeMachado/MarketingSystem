@@ -39,7 +39,15 @@ export default function CompanySearch() {
         toast.success(`Encontradas ${data.total} empresas!`);
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || 'Erro ao buscar empresas');
+        const errorMsg = error.response?.data?.message || 'Erro ao buscar empresas';
+        if (errorMsg.includes('Google Places') || errorMsg.includes('API') || companies.length === 0) {
+          toast.error(
+            'Google Places API não configurado. Configure GOOGLE_PLACES_API_KEY no arquivo .env. Veja: COMO-OBTER-GOOGLE-PLACES-API.md',
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(errorMsg);
+        }
       },
     }
   );
@@ -242,10 +250,26 @@ export default function CompanySearch() {
 
         {/* Mensagem quando não há resultados */}
         {searchMutation.isSuccess && companies.length === 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-            <p className="text-yellow-800">
-              Nenhuma empresa encontrada. Tente ajustar os filtros de busca.
-            </p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <div className="text-center">
+              <p className="text-yellow-800 font-medium mb-2">
+                ⚠️ Nenhuma empresa encontrada ou Google Places API não configurado
+              </p>
+              <p className="text-yellow-700 text-sm mb-4">
+                Se você acabou de fazer uma busca, tente ajustar os filtros.
+              </p>
+              <div className="bg-white border border-yellow-300 rounded-md p-4 text-left">
+                <p className="text-sm font-medium text-gray-800 mb-2">
+                  📋 Para configurar a API:
+                </p>
+                <ol className="text-xs text-gray-700 space-y-1 list-decimal list-inside">
+                  <li>Adicione no arquivo <code className="bg-gray-100 px-1 rounded">backend/.env</code>:</li>
+                  <li className="ml-4 font-mono bg-gray-100 p-2 rounded">GOOGLE_PLACES_API_KEY=sua-chave-aqui</li>
+                  <li>Veja o guia completo: <code className="bg-gray-100 px-1 rounded">COMO-OBTER-GOOGLE-PLACES-API.md</code></li>
+                  <li>Acesse: <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">console.cloud.google.com</a></li>
+                </ol>
+              </div>
+            </div>
           </div>
         )}
       </div>
