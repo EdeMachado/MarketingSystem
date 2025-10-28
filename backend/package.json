@@ -1,0 +1,54 @@
+{
+  "name": "marketing-system-backend",
+  "version": "1.0.0",
+  "description": "Sistema de Marketing em Massa - Email, WhatsApp e Redes Sociais",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "keywords": ["marketing", "email", "whatsapp", "social-media"],
+  "author": "EdeMachado",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.19.0",
+    "@types/compression": "^1.8.1",
+    "axios": "^1.12.2",
+    "bcrypt": "^5.1.1",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.7",
+    "zod": "^3.23.8",
+    "exceljs": "^4.4.0",
+    "moment": "^2.29.4",
+    "node-cron": "^3.0.3",
+    "multer": "^1.4.5-lts.1",
+    "csv-parser": "^3.0.0",
+    "uuid": "^9.0.1",
+    "jspdf": "^2.5.1",
+    "validator": "^13.11.0",
+    "open-graph-scraper": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.0",
+    "@types/nodemailer": "^6.4.14",
+    "@types/node-cron": "^3.0.8",
+    "@types/multer": "^1.4.11",
+    "@types/uuid": "^9.0.7",
+    "@types/validator": "^13.11.7",
+    "prisma": "^5.19.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}
+

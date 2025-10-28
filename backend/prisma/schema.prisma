@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id          String   @id @default(uuid())
+  email       String?
+  phone       String?
+  name        String
+  company     String?
+  source      String   // email, whatsapp, instagram, facebook
+  status      String   @default("active") // active, unsubscribed, bounced
+  tags        String?  // JSON array of tags
+  metadata    String?  // JSON for additional info
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  campaigns   CampaignContact[]
+  
+  @@index([email])
+  @@index([phone])
+  @@index([source])
+}
+
+model Campaign {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  type            String   // email, whatsapp, instagram, facebook
+  status          String   @default("draft") // draft, scheduled, running, completed, paused
+  template        String   // Template content
+  subject         String?  // Subject for email
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  isRecurring     Boolean  @default(false)
+  recurrenceType  String?  // daily, weekly, monthly
+  recurrenceValue Int?     // day of week/month
+  segmentFilters  String?  // JSON filters for segmentation
+  abTestEnabled   Boolean  @default(false)
+  abTestVariants  String?  // JSON for A/B test variants
+  metadata        String?  // JSON for additional data (mediaUrl, etc)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  contacts    CampaignContact[]
+  stats       CampaignStats?
+  
+  @@index([status])
+  @@index([type])
+  @@index([scheduledAt])
+}
+
+model CampaignContact {
+  id            String   @id @default(uuid())
+  campaignId    String
+  contactId     String
+  status        String   @default("pending") // pending, sent, delivered, opened, clicked, failed
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  openedAt      DateTime?
+  clickedAt     DateTime?
+  clickCount    Int      @default(0)
+  openCount     Int      @default(0)
+  trackingToken String?  // Unique token for tracking
+  error         String?
+  metadata      String?  // JSON for tracking (links clicked, etc)
+  
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@unique([campaignId, contactId])
+  @@index([status])
+  @@index([trackingToken])
+}
+
+model CampaignStats {
+  id            String   @id @default(uuid())
+  campaignId    String   @unique
+  total         Int      @default(0)
+  sent          Int      @default(0)
+  delivered     Int      @default(0)
+  opened        Int      @default(0)
+  clicked       Int      @default(0)
+  failed        Int      @default(0)
+  bounceRate    Float    @default(0)
+  openRate      Float    @default(0)
+  clickRate     Float    @default(0)
+  conversionRate Float   @default(0)
+  revenue       Float    @default(0)
+  updatedAt     DateTime @updatedAt
+  
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model EmailTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  subject     String
+  body        String   // HTML body
+  textBody    String?  // Plain text version
+  type        String   @default("email") // email, whatsapp, etc
+  variables   String?  // JSON array of available variables
+  category    String?  // promotional, newsletter, transactional
+  isDefault   Boolean  @default(false)
+  preview     String?  // Preview image URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([type])
+  @@index([category])
+}
+
+model Segment {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  filters     String   // JSON filters
+  contactCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([name])
+}
+
+model ClickEvent {
+  id            String   @id @default(uuid())
+  campaignId    String
+  contactId     String
+  trackingToken String
+  url           String
+  clickedAt     DateTime @default(now())
+  
+  @@index([campaignId])
+  @@index([trackingToken])
+  @@index([clickedAt])
+}
+
+model OpenEvent {
+  id            String   @id @default(uuid())
+  campaignId    String
+  contactId     String
+  trackingToken String
+  openedAt      DateTime @default(now())
+  ipAddress     String?
+  userAgent     String?
+  
+  @@index([campaignId])
+  @@index([trackingToken])
+  @@index([openedAt])
+}
+
