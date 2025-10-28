@@ -76,6 +76,21 @@ const checkSMTP = async () => {
 };
 checkSMTP();
 
+// Verificar Google Places API na inicialização
+const checkGooglePlaces = () => {
+  const hasGooglePlaces = !!process.env.GOOGLE_PLACES_API_KEY;
+  if (!hasGooglePlaces) {
+    console.warn('\n⚠️  ATENÇÃO: Google Places API não configurado!');
+    console.warn('🔍 Para buscar empresas automaticamente, configure no arquivo .env:');
+    console.warn('   GOOGLE_PLACES_API_KEY=sua-chave-aqui');
+    console.warn('📖 Veja: COMO-OBTER-GOOGLE-PLACES-API.md');
+    console.warn('🔗 Ou acesse: https://console.cloud.google.com/\n');
+  } else {
+    console.log('✅ Google Places API configurado');
+  }
+};
+checkGooglePlaces();
+
 // Error handler
 app.use(errorHandler);
 

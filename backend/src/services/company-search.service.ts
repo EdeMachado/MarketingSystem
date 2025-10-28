@@ -32,6 +32,8 @@ export const searchGooglePlaces = async (params: CompanySearchParams): Promise<C
   
   if (!apiKey) {
     console.warn('⚠️  GOOGLE_PLACES_API_KEY não configurado');
+    console.warn('📖 Veja: COMO-OBTER-GOOGLE-PLACES-API.md');
+    console.warn('🔗 Ou: https://console.cloud.google.com/ -> Ativar Places API -> Criar API Key');
     return [];
   }
 
