@@ -73,6 +73,9 @@ export default function Dashboard() {
   const totalSent = campaigns?.reduce((sum: number, c: any) => sum + (c.stats?.sent || 0), 0) || 0;
   const totalOpened = campaigns?.reduce((sum: number, c: any) => sum + (c.stats?.opened || 0), 0) || 0;
   const totalClicked = campaigns?.reduce((sum: number, c: any) => sum + (c.stats?.clicked || 0), 0) || 0;
+  const totalDelivered = campaigns?.reduce((sum: number, c: any) => sum + (c.stats?.delivered || 0), 0) || 0;
+  const totalFailed = campaigns?.reduce((sum: number, c: any) => sum + (c.stats?.failed || 0), 0) || 0;
+  const totalUnseen = Math.max(0, totalSent - totalOpened);
 
   const openRate = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : '0';
   const clickRate = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0';
@@ -148,6 +151,62 @@ export default function Dashboard() {
                   <dt className="text-sm font-medium text-gray-500 truncate">Taxa de Cliques</dt>
                   <dd className="text-2xl font-bold text-gray-900">{clickRate}%</dd>
                   <dd className="text-xs text-gray-500">{totalClicked} cliques totais</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs de Entrega/Abertura/Clique/Não vistos */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-emerald-500 rounded-md p-3"><span className="text-2xl">📨</span></div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Enviados</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{totalSent}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-teal-500 rounded-md p-3"><span className="text-2xl">✅</span></div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Entregues</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{totalDelivered}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-yellow-500 rounded-md p-3"><span className="text-2xl">👁️</span></div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Não vistos</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{totalUnseen}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-rose-500 rounded-md p-3"><span className="text-2xl">❌</span></div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Falhas</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{totalFailed}</dd>
                 </dl>
               </div>
             </div>
