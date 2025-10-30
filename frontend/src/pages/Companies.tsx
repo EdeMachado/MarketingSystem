@@ -158,71 +158,59 @@ export default function Companies() {
           </div>
         </div>
 
-        {/* Lista */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3">
+        {/* Cards (igual à Busca) */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <input type="checkbox" checked={allSelected} onChange={(e) => toggleAll(e.target.checked)} />
+              <span className="text-sm text-gray-600">Selecionar todos</span>
+            </div>
+            {!!data?.total && <span className="text-sm text-gray-600">Total: {data.total}</span>}
+          </div>
+
+          {isLoading && <div>Carregando...</div>}
+          {!isLoading && data?.items?.length === 0 && <div>Nenhuma empresa encontrada</div>}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data?.items?.map((c) => (
+              <div key={c.id} className="border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition bg-white">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 mr-3">
+                    <h3 className="font-semibold text-base line-clamp-2">{c.name}</h3>
+                    <div className="mt-2 space-y-1 text-sm text-gray-600">
+                      <p><span className="font-medium">📧</span> {c.email || '-'}</p>
+                      <p><span className="font-medium">📞</span> {c.phone || c.whatsapp || '-'}</p>
+                      <p className="line-clamp-2"><span className="font-medium">📍</span> {[c.address, c.city, c.state].filter(Boolean).join(', ') || '-'}</p>
+                      <p>
+                        <span className="font-medium">🌐</span>{' '}
+                        {c.website ? (
+                          <a href={c.website} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">{c.website}</a>
+                        ) : '-'}
+                      </p>
+                      <p className="text-xs text-gray-400">Fonte: {c.source}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
                     <input
                       type="checkbox"
-                      checked={allSelected}
-                      onChange={(e) => toggleAll(e.target.checked)}
+                      checked={!!selectedIds[c.id]}
+                      onChange={(e) => setSelectedIds({ ...selectedIds, [c.id]: e.target.checked })}
+                      title="Selecionar"
                     />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cidade/UF</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fonte</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading && (
-                  <tr><td className="px-4 py-3" colSpan={8}>Carregando...</td></tr>
-                )}
-                {!isLoading && data?.items?.length === 0 && (
-                  <tr><td className="px-4 py-3" colSpan={8}>Nenhuma empresa encontrada</td></tr>
-                )}
-                {data?.items?.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={!!selectedIds[c.id]}
-                        onChange={(e) => setSelectedIds({ ...selectedIds, [c.id]: e.target.checked })}
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-medium">{c.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.email || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.phone || c.whatsapp || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{[c.city, c.state].filter(Boolean).join('/') || '-'}</td>
-                    <td className="px-4 py-3 text-sm">
-                      {c.website ? (
-                        <a href={c.website} target="_blank" className="text-indigo-600 hover:underline" rel="noreferrer">{c.website}</a>
-                      ) : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.source}</td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-500">
-                      <button
-                        className="px-3 py-1 border rounded hover:bg-gray-100 mr-2"
-                        onClick={() => openModal(c)}
-                      >Editar</button>
-                      {new Date(c.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    <button
+                      className="px-3 py-1 border rounded text-xs hover:bg-gray-100"
+                      onClick={() => openModal(c)}
+                    >Editar</button>
+                  </div>
+                </div>
+                <div className="mt-3 text-right text-xs text-gray-500">{new Date(c.createdAt).toLocaleDateString()}</div>
+              </div>
+            ))}
           </div>
 
           {/* Paginação simples */}
           {!!data?.total && (
-            <div className="px-4 py-3 flex items-center justify-between bg-gray-50 text-sm text-gray-600">
-              <span>Total: {data.total}</span>
+            <div className="mt-4 px-1 py-2 flex items-center justify-between bg-gray-50 text-sm text-gray-600 rounded">
               <div className="space-x-2">
                 <button
                   className="px-3 py-1 border rounded disabled:opacity-50"
@@ -232,9 +220,10 @@ export default function Companies() {
                 <button
                   className="px-3 py-1 border rounded disabled:opacity-50"
                   onClick={() => setPagination((p) => ({ ...p, skip: p.skip + p.take }))}
-                  disabled={data.items.length < pagination.take}
+                  disabled={!!data?.items && data.items.length < pagination.take}
                 >Próximo</button>
               </div>
+              <span>Página {Math.floor(pagination.skip / pagination.take) + 1}</span>
             </div>
           )}
         </div>
