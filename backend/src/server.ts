@@ -19,6 +19,7 @@ import { companySearchRoutes } from './routes/company-search.routes';
 import { templateGeneratorRoutes } from './routes/template-generator.routes';
 import { automationRoutes } from './routes/automation.routes';
 import { apiConfigRoutes } from './routes/api-config.routes';
+import { companyRoutes } from './routes/company.routes';
 import { schedulerService } from './services/scheduler.service';
 import { errorHandler } from './middlewares/errorHandler';
 
@@ -56,6 +57,7 @@ app.use('/api/company-search', companySearchRoutes);
 app.use('/api/template-generator', templateGeneratorRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/api-config', apiConfigRoutes);
+app.use('/api/companies', companyRoutes);
 
 // Carregar campanhas agendadas na inicialização
 schedulerService.loadScheduledCampaigns().catch(console.error);

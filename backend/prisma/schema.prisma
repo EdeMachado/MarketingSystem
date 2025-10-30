@@ -164,3 +164,26 @@ model OpenEvent {
   @@index([openedAt])
 }
 
+// Cadastro de empresas (preenchido automaticamente pela busca)
+model Company {
+  id         String   @id @default(uuid())
+  name       String
+  email      String?
+  phone      String?
+  whatsapp   String?
+  website    String?
+  address    String?
+  city       String?
+  state      String?
+  zipCode    String?
+  source     String   // google, manual, import, etc
+  metadata   String?  // JSON com dados adicionais (types, rating, geometry, placeId)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([name])
+  @@index([city])
+  @@index([state])
+  @@index([website])
+}
+

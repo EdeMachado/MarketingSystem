@@ -235,7 +235,63 @@ const tryFindEmailFromWebsite = async (website: string): Promise<string | undefi
   }
 };
 
-// Validar e importar empresas automaticamente
+// Salvar em Company com deduplicação básica (website ou nome+endereço)
+const upsertCompany = async (company: CompanyData) => {
+  const website = company.website || null;
+  const name = company.name;
+  const address = company.address || null;
+
+  // Tentar deduplicar por website
+  let existing = null as any;
+  if (website) {
+    existing = await prisma.company.findFirst({ where: { website } });
+  }
+  // Se não achou, deduplicar por (nome + address)
+  if (!existing && name && address) {
+    existing = await prisma.company.findFirst({ where: { name, address } });
+  }
+
+  if (existing) {
+    await prisma.company.update({
+      where: { id: existing.id },
+      data: {
+        email: company.email || existing.email,
+        phone: company.phone || existing.phone,
+        whatsapp: company.whatsapp || existing.whatsapp,
+        website: website || existing.website,
+        address: address || existing.address,
+        city: company.city || existing.city,
+        state: company.state || existing.state,
+        zipCode: company.zipCode || existing.zipCode,
+        source: company.source || existing.source,
+        metadata: JSON.stringify({
+          ...(existing.metadata ? JSON.parse(existing.metadata) : {}),
+          ...(company.metadata || {}),
+        }),
+      },
+    });
+    return { updated: true };
+  } else {
+    await prisma.company.create({
+      data: {
+        name: company.name,
+        email: company.email || null,
+        phone: company.phone || null,
+        whatsapp: company.whatsapp || null,
+        website,
+        address,
+        city: company.city || null,
+        state: company.state || null,
+        zipCode: company.zipCode || null,
+        source: company.source,
+        metadata: company.metadata ? JSON.stringify(company.metadata) : null,
+      },
+    });
+    return { created: true };
+  }
+};
+
+// Validar e importar empresas automaticamente (Contact + Company)
 export const importCompaniesAsContacts = async (
   companies: CompanyData[],
   source: string = 'email'
@@ -263,6 +319,8 @@ export const importCompaniesAsContacts = async (
 
       if (existingContact) {
         duplicates++;
+        // Mesmo que contato exista, garantir atualização/criação da Company
+        await upsertCompany(company);
         continue;
       }
 
@@ -295,10 +353,13 @@ export const importCompaniesAsContacts = async (
             website: company.website,
             searchSource: company.source,
             importedAt: new Date().toISOString(),
-            ...company.metadata,
+            ...(company.metadata || {}),
           }),
         },
       });
+
+      // Criar/atualizar Company
+      await upsertCompany({ ...company, city, state });
 
       imported++;
     } catch (error: any) {
@@ -323,7 +384,7 @@ export const searchAndImportCompanies = async (
   // Buscar empresas
   const companies = await searchCompaniesByRegion(params);
 
-  // Importar como contatos
+  // Importar como contatos + empresas
   const result = await importCompaniesAsContacts(companies, 'email');
 
   return {
