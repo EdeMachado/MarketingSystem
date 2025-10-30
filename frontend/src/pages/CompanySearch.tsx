@@ -65,8 +65,7 @@ export default function CompanySearch() {
         toast.success(
           `Importadas ${data.imported} empresas! ${data.duplicates} duplicatas ignoradas.`
         );
-        // Atualizar lista após importação
-        searchMutation.mutate(searchParams);
+        // Mantém os resultados atuais na tela (não limpa a busca)
       },
       onError: (error: any) => {
         toast.error(error.response?.data?.message || 'Erro ao importar empresas');
