@@ -159,25 +159,42 @@ export default function Companies() {
         </div>
 
         {/* Cards (igual à Busca) */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-3">
               <input type="checkbox" checked={allSelected} onChange={(e) => toggleAll(e.target.checked)} />
               <span className="text-sm text-gray-600">Selecionar todos</span>
             </div>
-            {!!data?.total && <span className="text-sm text-gray-600">Total: {data.total}</span>}
+            <div className="flex items-center gap-2">
+              <button
+                className="px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
+                onClick={() => {
+                  const ids = Object.entries(selectedIds).filter(([, v]) => v).map(([k]) => k);
+                  if (ids.length === 0) return toast.error('Selecione ao menos uma empresa');
+                  if (!confirm(`Excluir ${ids.length} selecionada(s)?`)) return;
+                  api.post('/companies/bulk-delete', { ids })
+                    .then((r) => {
+                      toast.success(`Excluídas: ${r.data.data.deleted}`);
+                      setSelectedIds({});
+                      refetch();
+                    })
+                    .catch((e) => toast.error(e.response?.data?.message || 'Erro ao excluir'));
+                }}
+              >Excluir selecionadas</button>
+              {!!data?.total && <span className="text-xs text-gray-600">Total: {data.total}</span>}
+            </div>
           </div>
 
           {isLoading && <div>Carregando...</div>}
           {!isLoading && data?.items?.length === 0 && <div>Nenhuma empresa encontrada</div>}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {data?.items?.map((c) => (
-              <div key={c.id} className="border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition bg-white">
+              <div key={c.id} className="border border-gray-200 rounded-md p-3 shadow-sm hover:shadow-md transition bg-white">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 mr-3">
-                    <h3 className="font-semibold text-base line-clamp-2">{c.name}</h3>
-                    <div className="mt-2 space-y-1 text-sm text-gray-600">
+                    <h3 className="font-semibold text-sm line-clamp-2">{c.name}</h3>
+                    <div className="mt-1 space-y-0.5 text-xs text-gray-600">
                       <p><span className="font-medium">📧</span> {c.email || '-'}</p>
                       <p><span className="font-medium">📞</span> {c.phone || c.whatsapp || '-'}</p>
                       <p className="line-clamp-2"><span className="font-medium">📍</span> {[c.address, c.city, c.state].filter(Boolean).join(', ') || '-'}</p>
@@ -187,7 +204,7 @@ export default function Companies() {
                           <a href={c.website} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">{c.website}</a>
                         ) : '-'}
                       </p>
-                      <p className="text-xs text-gray-400">Fonte: {c.source}</p>
+                      <p className="text-[10px] text-gray-400">Fonte: {c.source}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
@@ -198,12 +215,12 @@ export default function Companies() {
                       title="Selecionar"
                     />
                     <button
-                      className="px-3 py-1 border rounded text-xs hover:bg-gray-100"
+                      className="px-2 py-1 border rounded text-xs hover:bg-gray-100"
                       onClick={() => openModal(c)}
                     >Editar</button>
                   </div>
                 </div>
-                <div className="mt-3 text-right text-xs text-gray-500">{new Date(c.createdAt).toLocaleDateString()}</div>
+                <div className="mt-2 text-right text-[10px] text-gray-500">{new Date(c.createdAt).toLocaleDateString()}</div>
               </div>
             ))}
           </div>

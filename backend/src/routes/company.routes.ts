@@ -165,3 +165,18 @@ router.post('/bulk-import', async (req, res, next) => {
     next(new AppError(error.message, 500));
   }
 });
+
+// Exclusão em massa
+router.post('/bulk-delete', async (req, res, next) => {
+  try {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new AppError('Lista de ids é obrigatória', 400);
+    }
+
+    const deleted = await prisma.company.deleteMany({ where: { id: { in: ids } } });
+    res.json({ success: true, data: { deleted: deleted.count } });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
