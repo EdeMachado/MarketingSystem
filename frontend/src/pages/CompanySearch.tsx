@@ -135,6 +135,19 @@ export default function CompanySearch() {
     })) as any);
   };
 
+  const importOneMutation = useMutation(
+    async (item: Company) => {
+      const res = await api.post('/companies/bulk-import', { companies: [{ ...item, source: 'google' }] });
+      return res.data.data;
+    },
+    {
+      onSuccess: (r) => {
+        toast.success(`Importado(s): ${r.imported} • Duplicatas: ${r.duplicates}`);
+      },
+      onError: (e: any) => toast.error(e.response?.data?.message || 'Erro ao importar'),
+    }
+  );
+
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto">
@@ -259,61 +272,48 @@ export default function CompanySearch() {
               </div>
             </div>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            {/* Grid de cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto pr-1">
               {companies.map((company, index) => (
-                <div
-                  key={index}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{company.name}</h3>
+                <div key={index} className="border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition bg-white">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 mr-3">
+                      <h3 className="font-semibold text-base line-clamp-2">{company.name}</h3>
                       <div className="mt-2 space-y-1 text-sm text-gray-600">
                         {company.email && (
-                          <p>
-                            <span className="font-medium">📧 Email:</span> {company.email}
-                          </p>
+                          <p><span className="font-medium">📧</span> {company.email}</p>
                         )}
                         {company.phone && (
                           <p>
-                            <span className="font-medium">📞 Telefone:</span> {company.phone}
-                            {company.whatsapp && (
-                              <span className="text-green-600 ml-2">✓ WhatsApp</span>
-                            )}
+                            <span className="font-medium">📞</span> {company.phone}
+                            {company.whatsapp && <span className="text-green-600 ml-2">WhatsApp</span>}
                           </p>
                         )}
                         {company.address && (
-                          <p>
-                            <span className="font-medium">📍 Endereço:</span> {company.address}
-                          </p>
+                          <p className="line-clamp-2"><span className="font-medium">📍</span> {company.address}</p>
                         )}
                         {company.website && (
                           <p>
-                            <span className="font-medium">🌐 Site:</span>{' '}
-                            <a
-                              href={company.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:underline"
-                            >
+                            <span className="font-medium">🌐</span>{' '}
+                            <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
                               {company.website}
                             </a>
                           </p>
                         )}
-                        <p className="text-xs text-gray-400">
-                          Fonte: {company.source}
-                        </p>
+                        <p className="text-xs text-gray-400">Fonte: {company.source}</p>
                       </div>
                     </div>
-                    <div className="ml-4">
-                      <label className="inline-flex items-center gap-2 text-sm text-gray-600">
-                        <input
-                          type="checkbox"
-                          checked={!!selected[index]}
-                          onChange={(e) => setSelected({ ...selected, [index]: e.target.checked })}
-                        />
-                        Selecionar
-                      </label>
+                    <div className="flex flex-col items-end gap-2">
+                      <input
+                        type="checkbox"
+                        checked={!!selected[index]}
+                        onChange={(e) => setSelected({ ...selected, [index]: e.target.checked })}
+                        title="Selecionar"
+                      />
+                      <button
+                        className="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700"
+                        onClick={() => importOneMutation.mutate(company)}
+                      >Importar</button>
                     </div>
                   </div>
                 </div>
