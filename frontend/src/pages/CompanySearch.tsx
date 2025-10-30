@@ -25,6 +25,7 @@ export default function CompanySearch() {
   });
 
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [selected, setSelected] = useState<Record<number, boolean>>({});
   const [isSearching, setIsSearching] = useState(false);
 
   // Buscar empresas
@@ -36,6 +37,7 @@ export default function CompanySearch() {
     {
       onSuccess: (data) => {
         setCompanies(data.companies || []);
+        setSelected({});
         toast.success(`Encontradas ${data.total} empresas!`);
       },
       onError: (error: any) => {
@@ -87,6 +89,33 @@ export default function CompanySearch() {
       return;
     }
     importMutation.mutate(searchParams);
+  };
+
+  const importSelectedMutation = useMutation(
+    async (items: Company[]) => {
+      const res = await api.post('/companies/bulk-import', { companies: items });
+      return res.data.data;
+    },
+    {
+      onSuccess: (r) => {
+        toast.success(`Importadas ${r.imported} • Duplicatas ${r.duplicates}`);
+      },
+      onError: (e: any) => {
+        toast.error(e.response?.data?.message || 'Erro ao importar selecionados');
+      },
+    }
+  );
+
+  const handleImportSelected = () => {
+    const items = companies.filter((_, idx) => selected[idx]);
+    if (items.length === 0) {
+      toast.error('Selecione ao menos uma empresa');
+      return;
+    }
+    importSelectedMutation.mutate(items.map((c) => ({
+      ...c,
+      source: 'google',
+    })) as any);
   };
 
   return (
@@ -193,6 +222,24 @@ export default function CompanySearch() {
               <h2 className="text-xl font-semibold">
                 {companies.length} Empresas Encontradas
               </h2>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleImportAll}
+                  disabled={importMutation.isLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm"
+                >
+                  {importMutation.isLoading ? 'Importando...' : 'Importar Todas'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleImportSelected}
+                  disabled={importSelectedMutation.isLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+                >
+                  {importSelectedMutation.isLoading ? 'Importando...' : 'Importar Selecionadas'}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -240,6 +287,16 @@ export default function CompanySearch() {
                           Fonte: {company.source}
                         </p>
                       </div>
+                    </div>
+                    <div className="ml-4">
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={!!selected[index]}
+                          onChange={(e) => setSelected({ ...selected, [index]: e.target.checked })}
+                        />
+                        Selecionar
+                      </label>
                     </div>
                   </div>
                 </div>

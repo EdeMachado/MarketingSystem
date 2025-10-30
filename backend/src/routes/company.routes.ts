@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../middlewares/errorHandler';
-import { searchCompaniesByRegion, searchAndImportCompanies } from '../services/company-search.service';
+import { searchCompaniesByRegion, searchAndImportCompanies, importCompaniesAsContacts } from '../services/company-search.service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -133,3 +133,35 @@ router.post('/import-from-search', async (req, res, next) => {
 });
 
 export { router as companyRoutes };
+
+// Importar empresas selecionadas (payload direto)
+router.post('/bulk-import', async (req, res, next) => {
+  try {
+    const { companies } = req.body || {};
+    if (!Array.isArray(companies) || companies.length === 0) {
+      throw new AppError('Lista de empresas é obrigatória', 400);
+    }
+
+    // Importa para Contacts e Companies com deduplicação
+    const result = await importCompaniesAsContacts(
+      companies.map((c: any) => ({
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        whatsapp: c.whatsapp,
+        website: c.website,
+        address: c.address,
+        city: c.city,
+        state: c.state,
+        zipCode: c.zipCode,
+        source: c.source || 'google',
+        metadata: c.metadata,
+      })),
+      'email'
+    );
+
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
