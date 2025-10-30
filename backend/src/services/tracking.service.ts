@@ -24,6 +24,15 @@ export const processTemplateWithTracking = (
     if (url.startsWith('mailto:') || url.startsWith('#')) {
       return match;
     }
+    // Anexar UTMs ao destino original
+    try {
+      const u = new URL(url);
+      u.searchParams.set('utm_source', 'email');
+      u.searchParams.set('utm_medium', 'campaign');
+      u.searchParams.set('utm_campaign', campaignId);
+      u.searchParams.set('utm_content', contactId);
+      url = u.toString();
+    } catch {}
     const trackedUrl = `${process.env.API_URL || 'http://localhost:3001'}/api/tracking/click/${trackingToken}?url=${encodeURIComponent(url)}`;
     return match.replace(url, trackedUrl);
   });

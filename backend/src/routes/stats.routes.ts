@@ -78,3 +78,21 @@ router.get('/period', async (req, res, next) => {
 
 export { router as statsRoutes };
 
+// Top links clicados (últimos 7 dias)
+router.get('/top-links', async (req, res, next) => {
+  try {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const clicks = await prisma.clickEvent.groupBy({
+      by: ['url'],
+      where: { clickedAt: { gte: since } },
+      _count: { url: true },
+      orderBy: { _count: { url: 'desc' } },
+      take: 10,
+    });
+
+    res.json({ success: true, data: clicks.map((c) => ({ url: c.url, count: (c as any)._count.url })) });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
+

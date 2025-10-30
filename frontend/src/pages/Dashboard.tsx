@@ -34,6 +34,10 @@ export default function Dashboard() {
     const res = await api.get('/campaigns/stats/overview');
     return res.data.data;
   });
+  const { data: topLinks } = useQuery('top-links', async () => {
+    const res = await api.get('/campaigns/stats/top-links');
+    return res.data.data as { url: string; count: number }[];
+  });
 
   // Preparar dados para gráficos
   const campaignStats = campaigns?.map((c: any) => ({
@@ -306,6 +310,26 @@ export default function Dashboard() {
               <Line type="monotone" dataKey="cliques" stroke="#f59e0b" name="Cliques" />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+        {/* Top Links Clicados */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Top Links Clicados (7 dias)
+          </h3>
+          <div className="space-y-2 text-sm">
+            {topLinks?.length ? (
+              topLinks.map((l, i) => (
+                <div key={i} className="flex items-center justify-between border-b last:border-0 pb-2">
+                  <a href={l.url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline truncate max-w-[75%]">
+                    {l.url}
+                  </a>
+                  <span className="text-gray-600">{l.count} cliques</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-gray-500">Sem cliques no período</div>
+            )}
+          </div>
         </div>
       </div>
     </div>
