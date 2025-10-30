@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -28,6 +28,18 @@ export default function CompanySearch() {
   const [selected, setSelected] = useState<Record<number, boolean>>({});
   const [isSearching, setIsSearching] = useState(false);
 
+  // Hidratar últimos resultados da busca ao carregar a página
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('companySearch:last');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.searchParams) setSearchParams(parsed.searchParams);
+        if (Array.isArray(parsed?.companies)) setCompanies(parsed.companies);
+      }
+    } catch {}
+  }, []);
+
   // Buscar empresas
   const searchMutation = useMutation(
     async (params: typeof searchParams) => {
@@ -39,6 +51,12 @@ export default function CompanySearch() {
         setCompanies(data.companies || []);
         setSelected({});
         toast.success(`Encontradas ${data.total} empresas!`);
+        try {
+          localStorage.setItem(
+            'companySearch:last',
+            JSON.stringify({ searchParams, companies: data.companies || [] })
+          );
+        } catch {}
       },
       onError: (error: any) => {
         const errorMsg = error.response?.data?.message || 'Erro ao buscar empresas';
