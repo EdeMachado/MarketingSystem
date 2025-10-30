@@ -43,20 +43,47 @@ export const searchGooglePlaces = async (params: CompanySearchParams): Promise<C
 
     // Buscar lugares próximos
     const searchQuery = location ? `${query} em ${location}` : query;
-    
-    const response = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', {
-      params: {
-        query: searchQuery,
+
+    // Helper para esperar (necessário antes de usar next_page_token)
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    let pageToken: string | undefined = undefined;
+    let pagesFetched = 0;
+
+    while (results.length < maxResults && pagesFetched < 3) {
+      // Montar parâmetros da requisição
+      const requestParams: any = {
         key: apiKey,
-        radius: radius,
         language: 'pt-BR',
-      },
-    });
+      };
 
-    if (response.data.results && response.data.results.length > 0) {
-      const places = response.data.results.slice(0, maxResults);
+      if (pageToken) {
+        requestParams.pagetoken = pageToken;
+      } else {
+        requestParams.query = searchQuery;
+        if (radius) requestParams.radius = radius;
+      }
 
-      for (const place of places) {
+      // Para páginas após a primeira, aguardar ~2s por exigência do Google
+      if (pageToken) {
+        await delay(2000);
+      }
+
+      const response = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', {
+        params: requestParams,
+      });
+
+      const pageResults = response.data.results || [];
+
+      if (pageResults.length === 0) {
+        break;
+      }
+
+      // Fatiar para não exceder maxResults
+      const remaining = maxResults - results.length;
+      const slice = pageResults.slice(0, remaining);
+
+      for (const place of slice) {
         // Buscar detalhes completos do lugar
         const detailsResponse = await axios.get(
           'https://maps.googleapis.com/maps/api/place/details/json',
@@ -74,33 +101,46 @@ export const searchGooglePlaces = async (params: CompanySearchParams): Promise<C
         
         // Tentar encontrar email no website (se houver)
         let email: string | undefined;
-        if (details.website) {
+        if (details?.website) {
           email = await tryFindEmailFromWebsite(details.website);
         }
 
         // Normalizar telefone
-        let phone = details.formatted_phone_number;
+        let phone = details?.formatted_phone_number;
         if (phone) {
           phone = normalizePhone(phone);
         }
 
         const company: CompanyData = {
-          name: details.name || place.name,
+          name: (details && details.name) || place.name,
           email,
           phone,
           whatsapp: phone, // Assumir que telefone pode ser WhatsApp
-          address: details.formatted_address,
-          website: details.website,
+          address: details?.formatted_address,
+          website: details?.website,
           source: 'google',
           metadata: {
             placeId: place.place_id,
-            types: details.types || place.types,
+            types: (details && details.types) || place.types,
             rating: place.rating,
-            geometry: details.geometry,
+            geometry: details?.geometry,
           },
         };
 
         results.push(company);
+
+        if (results.length >= maxResults) {
+          break;
+        }
+      }
+
+      pagesFetched += 1;
+
+      // Preparar próxima página
+      if (response.data.next_page_token && results.length < maxResults) {
+        pageToken = response.data.next_page_token;
+      } else {
+        break;
       }
     }
 
