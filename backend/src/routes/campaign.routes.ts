@@ -12,7 +12,14 @@ const prisma = new PrismaClient();
 // Listar campanhas
 router.get('/', async (req, res, next) => {
   try {
+    const { company, type, status } = req.query;
+    const where: any = {};
+    if (company) where.company = company;
+    if (type) where.type = type;
+    if (status) where.status = status;
+    
     const campaigns = await prisma.campaign.findMany({
+      where,
       include: {
         stats: true,
         _count: {
@@ -61,12 +68,13 @@ router.post('/', async (req, res, next) => {
       throw new AppError('Nome, tipo e template são obrigatórios', 400);
     }
 
-    const { subject, isRecurring, recurrenceType, recurrenceValue, segmentFilters, mediaUrl } = req.body;
+    const { subject, isRecurring, recurrenceType, recurrenceValue, segmentFilters, mediaUrl, company } = req.body;
 
     const campaign = await prisma.campaign.create({
       data: {
         name,
         description: description || null,
+        company: company || 'biomed',
         type,
         template,
         subject: subject || null,
@@ -279,6 +287,25 @@ router.delete('/:id', async (req, res, next) => {
     next(new AppError(error.message, 500));
   }
 });
+
+// Get campaign budget/roi
+router.get('/:id/budget', async (req, res, next) => {
+  try {
+    const c = await prisma.campaign.findUnique({ where: { id: req.params.id }, select: { budgetPlanned: true, budgetSpent: true, revenue: true, roi: true } })
+    if (!c) throw new AppError('Campanha não encontrada', 404)
+    res.json({ success: true, data: c })
+  } catch (e: any) { next(new AppError(e.message, 500)) }
+})
+
+// Update campaign budget/roi
+router.put('/:id/budget', async (req, res, next) => {
+  try {
+    const { budgetPlanned, budgetSpent, revenue } = req.body
+    const roi = (typeof budgetSpent === 'number' && typeof revenue === 'number' && budgetSpent > 0) ? (revenue - budgetSpent) / budgetSpent : undefined
+    const c = await prisma.campaign.update({ where: { id: req.params.id }, data: { budgetPlanned, budgetSpent, revenue, roi } })
+    res.json({ success: true, data: { budgetPlanned: c.budgetPlanned, budgetSpent: c.budgetSpent, revenue: c.revenue, roi: c.roi } })
+  } catch (e: any) { next(new AppError(e.message, 500)) }
+})
 
 export { router as campaignRoutes };
 

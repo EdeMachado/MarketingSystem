@@ -15,6 +15,11 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/campanhas', label: 'Campanhas', icon: '📧' },
     { path: '/automacoes', label: 'Automações', icon: '⚙️' },
     { path: '/contatos', label: 'Contatos', icon: '👥' },
+    { path: '/segmentos', label: 'Segmentos', icon: '🗂️' },
+    { path: '/producao', label: 'Produção', icon: '🎬' },
+    { path: '/ativos', label: 'Ativos', icon: '🎛️' },
+    { path: '/relatorios', label: 'Relatórios', icon: '📈' },
+    { path: '/insights', label: 'Insights', icon: '💡' },
     { path: '/templates', label: 'Templates', icon: '📝' },
     { path: '/configuracoes', label: 'Configurações', icon: '🔧' },
   ];

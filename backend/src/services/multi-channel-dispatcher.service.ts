@@ -33,8 +33,9 @@ export const dispatchMultiChannel = async (config: DispatcherConfig) => {
     throw new Error('Campanha não encontrada');
   }
 
-  // Preparar contatos
+  // Preparar contatos (suprimir opt-out e inativos)
   const contacts = campaign.contacts
+    .filter((cc) => cc.contact.status === 'active' && !cc.contact.optOut)
     .map((cc) => ({
       email: cc.contact.email || '',
       phone: cc.contact.phone || '',

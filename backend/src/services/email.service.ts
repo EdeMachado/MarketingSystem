@@ -7,6 +7,31 @@ const prisma = new PrismaClient();
 // Configuração do transporter de email
 let transporter: nodemailer.Transporter | null = null;
 
+// Limites por domínio (por minuto)
+const domainWindowMs = 60 * 1000
+const domainLimitMap: Map<string, { windowStart: number; count: number; limit: number }> = new Map()
+
+function getDomain(email: string): string {
+	const parts = email.split('@')
+	return parts[1]?.toLowerCase() || 'unknown'
+}
+
+function canSendToDomain(domain: string): boolean {
+	const now = Date.now()
+	const entry = domainLimitMap.get(domain)
+	const limit = parseInt(process.env.EMAIL_PER_DOMAIN_PER_MINUTE || '60')
+	if (!entry || now - entry.windowStart > domainWindowMs) {
+		domainLimitMap.set(domain, { windowStart: now, count: 0, limit })
+		return true
+	}
+	return entry.count < entry.limit
+}
+
+function markDomainSend(domain: string) {
+	const entry = domainLimitMap.get(domain)
+	if (entry) entry.count += 1
+}
+
 export const initializeEmailService = () => {
   // Verificar se SMTP está configurado
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -113,8 +138,38 @@ export const sendBulkEmails = async (
   const rateLimit = parseInt(process.env.EMAIL_RATE_LIMIT || '100');
   const delay = (60 * 1000) / rateLimit; // Delay entre emails em ms
 
+  // Carregar contatos válidos do banco (opt-out, status)
+  const allowedEmails = new Set<string>()
+  const dbContacts = await prisma.contact.findMany({
+    where: {
+      email: { in: contacts.map(c => c.email) },
+      status: 'active',
+      optOut: false,
+    },
+    select: { email: true, emailValid: true },
+  })
+  for (const c of dbContacts) {
+    if (c.email && (c.emailValid !== false)) {
+      allowedEmails.add(c.email)
+    }
+  }
+
   for (let i = 0; i < contacts.length; i++) {
     const contact = contacts[i];
+
+    // Suprimir opt-out/invalidos
+    if (!allowedEmails.has(contact.email)) {
+      results.push({ email: contact.email, success: false, suppressed: true })
+      continue
+    }
+
+    // Limite por domínio
+    const domain = getDomain(contact.email)
+    if (!canSendToDomain(domain)) {
+      results.push({ email: contact.email, success: false, throttled: true, domain })
+      continue
+    }
+    markDomainSend(domain)
     
     try {
       // Processar template com variáveis do contato
@@ -206,7 +261,7 @@ export const sendBulkEmails = async (
       results.push({
         email: contact.email,
         success: true,
-        messageId: result.messageId,
+        messageId: (result as any).messageId,
       });
 
       // Rate limiting
@@ -220,31 +275,25 @@ export const sendBulkEmails = async (
         error: error.message,
       });
 
-      // Salvar erro no banco
-      if (campaignId) {
-        const dbContact = await prisma.contact.findFirst({
-          where: { email: contact.email },
-        });
-
-        if (dbContact) {
+      // Bounce handling básico
+      const dbContact = await prisma.contact.findFirst({ where: { email: contact.email } })
+      if (dbContact) {
+        const isBounce = /550|user unknown|mailbox unavailable|bounce/i.test(error.message || '')
+        await prisma.contact.update({
+          where: { id: dbContact.id },
+          data: {
+            status: isBounce ? 'bounced' : dbContact.status,
+            emailValid: isBounce ? false : dbContact.emailValid,
+            validationReason: isBounce ? 'bounce' : dbContact.validationReason,
+            bounceCount: { increment: 1 } as any,
+          },
+        })
+        if (campaignId) {
           await prisma.campaignContact.upsert({
-            where: {
-              campaignId_contactId: {
-                campaignId,
-                contactId: dbContact.id,
-              },
-            },
-            update: {
-              status: 'failed',
-              error: error.message,
-            },
-            create: {
-              campaignId,
-              contactId: dbContact.id,
-              status: 'failed',
-              error: error.message,
-            },
-          });
+            where: { campaignId_contactId: { campaignId, contactId: dbContact.id } },
+            update: { status: 'failed', error: error.message },
+            create: { campaignId, contactId: dbContact.id, status: 'failed', error: error.message },
+          })
         }
       }
     }
@@ -252,8 +301,8 @@ export const sendBulkEmails = async (
 
   return {
     total: contacts.length,
-    success: results.filter((r) => r.success).length,
-    failed: results.filter((r) => !r.success).length,
+    success: results.filter((r) => (r as any).success).length,
+    failed: results.filter((r) => !(r as any).success).length,
     results,
   };
 };

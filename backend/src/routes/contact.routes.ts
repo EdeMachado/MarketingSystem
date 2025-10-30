@@ -144,7 +144,7 @@ router.post('/import', async (req, res, next) => {
 // Atualizar contato
 router.put('/:id', async (req, res, next) => {
   try {
-    const { email, phone, name, company, source, status, tags, metadata } = req.body;
+    const { email, phone, name, company, source, status, tags, metadata, optOut } = req.body;
 
     const contact = await prisma.contact.update({
       where: { id: req.params.id },
@@ -155,12 +155,48 @@ router.put('/:id', async (req, res, next) => {
         company,
         source,
         status,
+        optOut,
+        optOutAt: typeof optOut === 'boolean' ? (optOut ? new Date() : null) : undefined,
         tags: tags ? JSON.stringify(tags) : undefined,
         metadata: metadata ? JSON.stringify(metadata) : undefined,
       },
     });
 
     res.json({ success: true, data: contact });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
+
+// Opt-out em massa por email
+router.post('/optout-bulk', async (req, res, next) => {
+  try {
+    const { emails } = req.body as { emails: string[] };
+    if (!Array.isArray(emails) || emails.length === 0) {
+      throw new AppError('Forneça uma lista de emails', 400);
+    }
+    const updated = await prisma.contact.updateMany({
+      where: { email: { in: emails } },
+      data: { optOut: true, optOutAt: new Date() },
+    });
+    res.json({ success: true, data: { updated: updated.count } });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
+
+// Remover opt-out em massa por email
+router.post('/optin-bulk', async (req, res, next) => {
+  try {
+    const { emails } = req.body as { emails: string[] };
+    if (!Array.isArray(emails) || emails.length === 0) {
+      throw new AppError('Forneça uma lista de emails', 400);
+    }
+    const updated = await prisma.contact.updateMany({
+      where: { email: { in: emails } },
+      data: { optOut: false, optOutAt: null },
+    });
+    res.json({ success: true, data: { updated: updated.count } });
   } catch (error: any) {
     next(new AppError(error.message, 500));
   }

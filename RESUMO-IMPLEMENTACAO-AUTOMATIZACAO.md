@@ -156,3 +156,4 @@ GOOGLE_PLACES_API_KEY=sua-chave-aqui
 **Versão:** 2.0 - Automação Completa
 **Data:** Janeiro 2025
 
+

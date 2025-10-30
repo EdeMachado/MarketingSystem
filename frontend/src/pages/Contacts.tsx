@@ -8,6 +8,8 @@ export default function Contacts() {
   const [showModal, setShowModal] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editingContact, setEditingContact] = useState<any>(null);
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkText, setBulkText] = useState('');
   const queryClient = useQueryClient();
 
   const { data: contacts, isLoading } = useQuery('contacts', async () => {
@@ -65,6 +67,27 @@ export default function Contacts() {
     }
   );
 
+  const bulkOpt = async (type: 'optout' | 'optin') => {
+    const emails = bulkText
+      .split(/\s|,|;|\n/g)
+      .map((e) => e.trim())
+      .filter((e) => e.includes('@'));
+    if (emails.length === 0) {
+      toast.error('Cole ao menos um email válido');
+      return;
+    }
+    try {
+      const url = type === 'optout' ? '/contacts/optout-bulk' : '/contacts/optin-bulk';
+      const res = await api.post(url, { emails });
+      toast.success(`${type === 'optout' ? 'Opt-out' : 'Opt-in'} aplicado em ${res.data.data.updated} contato(s)`);
+      setBulkModal(false);
+      setBulkText('');
+      queryClient.invalidateQueries('contacts');
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Erro na operação em massa');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -111,6 +134,27 @@ export default function Contacts() {
         <h2 className="text-3xl font-bold text-gray-900">Contatos</h2>
         <div className="space-x-2">
           <button
+            onClick={() => window.open('/api/export/contacts/excel', '_blank')}
+            className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+            title="Exportar Excel (todos)"
+          >
+            ⬇️ Exportar Excel
+          </button>
+          <button
+            onClick={() => window.open('/api/export/contacts/excel?status=active&hasEmail=true&emailValid=true&optOut=false', '_blank')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            title="Exportar apenas e-mails válidos, ativos e sem opt-out"
+          >
+            ⬇️ Exportar Válidos
+          </button>
+          <button
+            onClick={() => setBulkModal(true)}
+            className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700"
+            title="Aplicar opt-out/opt-in em massa"
+          >
+            🛡️ Opt-out em Massa
+          </button>
+          <button
             onClick={() => setShowImport(true)}
             className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
           >
@@ -142,7 +186,7 @@ export default function Contacts() {
                 Empresa
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Origem
+                Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Ações
@@ -157,7 +201,23 @@ export default function Contacts() {
                     {contact.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {contact.email || '-'}
+                    <div className="flex items-center gap-2">
+                      <span>{contact.email || '-'}</span>
+                      {contact.email && (
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full ${
+                            contact.emailValid === true
+                              ? 'bg-green-100 text-green-700'
+                              : contact.emailValid === false
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                          title={contact.validationReason || ''}
+                        >
+                          {contact.emailValid === true ? 'válido' : contact.emailValid === false ? 'inválido' : '—'}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {contact.phone || '-'}
@@ -166,18 +226,37 @@ export default function Contacts() {
                     {contact.company || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">
-                      {contact.source}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">
+                        {contact.source}
+                      </span>
+                      {contact.optOut && (
+                        <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700" title="Opt-out">
+                          opt-out
+                        </span>
+                      )}
+                      {contact.status === 'bounced' && (
+                        <span className="px-2 py-1 text-xs rounded-full bg-rose-100 text-rose-700" title="Bounce">
+                          bounced
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => handleEdit(contact)}
                         className="text-indigo-600 hover:text-indigo-900"
                         title="Editar contato"
                       >
                         ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => updateContact.mutate({ id: contact.id, data: { optOut: !contact.optOut } })}
+                        className={`hover:opacity-80 ${contact.optOut ? 'text-yellow-700' : 'text-gray-600'}`}
+                        title={contact.optOut ? 'Remover opt-out' : 'Marcar opt-out'}
+                      >
+                        {contact.optOut ? '🔓 Opt-in' : '🔒 Opt-out'}
                       </button>
                       <button
                         onClick={() => handleDelete(contact)}
@@ -298,6 +377,32 @@ export default function Contacts() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-5 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">Opt-out/Opt-in em Massa</h3>
+              <button onClick={() => setBulkModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-sm text-gray-600">Cole abaixo os emails (separados por linha, vírgula ou ponto e vírgula):</p>
+              <textarea
+                rows={8}
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm"
+                placeholder={`joao@empresa.com\nmaria@empresa.com; pedro@empresa.com`}
+              />
+              <div className="flex justify-end gap-2">
+                <button className="px-4 py-2 border rounded" onClick={() => setBulkModal(false)}>Cancelar</button>
+                <button className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700" onClick={() => bulkOpt('optout')}>Aplicar Opt-out</button>
+                <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700" onClick={() => bulkOpt('optin')}>Remover Opt-out</button>
+              </div>
             </div>
           </div>
         </div>

@@ -22,6 +22,12 @@ import { apiConfigRoutes } from './routes/api-config.routes';
 import { companyRoutes } from './routes/company.routes';
 import { schedulerService } from './services/scheduler.service';
 import { errorHandler } from './middlewares/errorHandler';
+import { reportsRoutes } from './routes/reports.routes';
+import { insightsRoutes } from './routes/insights.routes';
+import { projectsRoutes } from './routes/projects.routes';
+import { assetsRoutes } from './routes/assets.routes';
+import { advertisementRoutes } from './routes/advertisement.routes';
+import { aiGeneratorRoutes } from './routes/ai-generator.routes';
 
 dotenv.config();
 
@@ -48,6 +54,7 @@ app.use('/api/contacts', contactRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/templates-library', templateLibraryRoutes);
 app.use('/api/campaigns/stats', statsRoutes);
+app.use('/api/stats', statsRoutes); // Compatibilidade com frontend
 app.use('/api/import', importRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/segments', segmentRoutes);
@@ -58,6 +65,12 @@ app.use('/api/template-generator', templateGeneratorRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/api-config', apiConfigRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/insights', insightsRoutes);
+app.use('/api/projects', projectsRoutes);
+app.use('/api', assetsRoutes);
+app.use('/api/advertisements', advertisementRoutes);
+app.use('/api/ai', aiGeneratorRoutes);
 
 // Carregar campanhas agendadas na inicialização
 schedulerService.loadScheduledCampaigns().catch(console.error);

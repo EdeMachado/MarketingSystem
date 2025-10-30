@@ -31,11 +31,11 @@ export default function Dashboard() {
   });
 
   const { data: stats } = useQuery('dashboard-stats', async () => {
-    const res = await api.get('/campaigns/stats/overview');
+    const res = await api.get('/stats/overview');
     return res.data.data;
   });
   const { data: topLinks } = useQuery('top-links', async () => {
-    const res = await api.get('/campaigns/stats/top-links');
+    const res = await api.get('/stats/top-links');
     return res.data.data as { url: string; count: number }[];
   });
 

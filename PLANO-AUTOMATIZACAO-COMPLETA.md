@@ -221,3 +221,4 @@ Com essa automação:
 **Prioridade:** 🔥 ALTA
 **Timeline:** 1-2 semanas para versão funcional
 
+

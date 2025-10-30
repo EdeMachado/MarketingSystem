@@ -243,3 +243,4 @@
 
 **Pronto! Agora você pode buscar empresas automaticamente! 🎉**
 
+

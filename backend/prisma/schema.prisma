@@ -28,18 +28,30 @@ model Contact {
   metadata    String?  // JSON for additional info
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
+  // Enriquecimento e validação
+  emailValid        Boolean?   // resultado da validação
+  emailValidatedAt  DateTime?  // quando foi validado
+  validationReason  String?    // motivo de inválido/bounce
+  whatsappDetected  Boolean?   // se possui WhatsApp ativo
+  enrichedAt        DateTime?  // quando dados foram enriquecidos
+  optOut            Boolean    @default(false) // LGPD opt-out
+  optOutAt          DateTime?  // data do opt-out
+  bounceCount       Int        @default(0)
+
   campaigns   CampaignContact[]
-  
+
   @@index([email])
   @@index([phone])
   @@index([source])
+  @@index([optOut])
 }
 
 model Campaign {
   id              String   @id @default(uuid())
   name            String
   description     String?
+  company         String   @default("biomed") // biomed, advocacia
   type            String   // email, whatsapp, instagram, facebook
   status          String   @default("draft") // draft, scheduled, running, completed, paused
   template        String   // Template content
@@ -56,12 +68,19 @@ model Campaign {
   metadata        String?  // JSON for additional data (mediaUrl, etc)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Budget/ROI
+  budgetPlanned   Float?   // orçamento planejado
+  budgetSpent     Float?   // gasto realizado
+  revenue         Float?   // receita atribuída
+  roi             Float?   // calculado: (revenue - budgetSpent) / budgetSpent
   
   contacts    CampaignContact[]
   stats       CampaignStats?
   
   @@index([status])
   @@index([type])
+  @@index([company])
   @@index([scheduledAt])
 }
 
@@ -131,10 +150,12 @@ model Segment {
   description String?
   filters     String   // JSON filters
   contactCount Int     @default(0)
+  type        String   @default("dynamic") // dynamic | static
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([name])
+  @@index([type])
 }
 
 model ClickEvent {
@@ -181,9 +202,156 @@ model Company {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // Enriquecimento e deduplicação
+  emailValid        Boolean?
+  emailValidatedAt  DateTime?
+  whatsappDetected  Boolean?
+  enrichedAt        DateTime?
+  normalizedName    String?
+  normalizedAddress String?
+
   @@index([name])
   @@index([city])
   @@index([state])
   @@index([website])
+  @@index([normalizedName])
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  clientName  String?
+  description String?
+  status      String   @default("active") // active, on_hold, completed, cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks       Task[]
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  projectId   String?
+  title       String
+  description String?
+  status      String   @default("todo") // todo, doing, review, done
+  assignee    String?
+  priority    String   @default("medium") // low, medium, high, urgent
+  startDate   DateTime?
+  dueDate     DateTime?
+  estimateH   Float?   // horas estimadas
+  spentH      Float?   // horas realizadas
+  dependencies String? // JSON array de Task IDs
+  tags        String?  // JSON array de tags
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  @@index([status])
+  @@index([assignee])
+  @@index([projectId])
+  @@index([dueDate])
+}
+
+model Asset {
+  id          String   @id @default(uuid())
+  company     String   @default("biomed") // biomed, advocacia
+  name        String
+  type        String   // image, video, doc, text
+  url         String?
+  content     String?  // texto/HTML
+  tags        String?  // JSON tags
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([company])
+}
+
+model Creative {
+  id          String   @id @default(uuid())
+  company     String   @default("biomed") // biomed, advocacia
+  title       String
+  description String?
+  channel     String   // email, instagram, facebook, linkedin
+  body        String?  // HTML/Texto
+  assetIds    String?  // JSON array de Asset IDs
+  status      String   @default("draft") // draft, in_review, approved, rejected
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  approvals   Approval[]
+  
+  @@index([company])
+}
+
+model Approval {
+  id          String   @id @default(uuid())
+  creativeId  String?
+  advertisementId String?
+  reviewer    String
+  status      String   @default("pending") // pending, approved, changes_requested, rejected
+  comment     String?
+  createdAt   DateTime @default(now())
+  decidedAt   DateTime?
+
+  creative       Creative?      @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  advertisement  Advertisement? @relation(fields: [advertisementId], references: [id], onDelete: Cascade)
+
+  @@index([creativeId])
+  @@index([advertisementId])
+}
+
+model Advertisement {
+  id          String   @id @default(uuid())
+  company     String   @default("biomed") // biomed, advocacia
+  
+  // Planejamento
+  title       String
+  serviceId   String?  // ID do serviço do catálogo
+  brief       String?  // descrição/brief do anúncio
+  objective   String?  // objetivo (conversão, awareness, engagement)
+  targetAudience String? // público-alvo
+  budget      Float?   // orçamento planejado
+  budgetSpent Float?   @default(0)
+  
+  // Criação
+  content     String?  // conteúdo/texto do anúncio
+  mediaUrls   String?  // JSON array de URLs de imagens/vídeos
+  channels    String?  // JSON array de canais: ["email", "instagram", "facebook", etc]
+  channel     String?  // DEPRECATED: manter para compatibilidade, usar channels
+  format      String?  // post, story, reel, carousel, etc
+  
+  // Workflow
+  status      String   @default("draft") // draft, planning, creation, review, approved, scheduled, published
+  stage       String   @default("planning") // planning, creation, approval, scheduling, publishing
+  
+  // Aprovação
+  needsApproval Boolean @default(true)
+  approvedAt   DateTime?
+  approvedBy   String?
+  
+  // Agendamento
+  scheduledAt DateTime?
+  scheduledChannel String? // canal onde será publicado
+  
+  // Publicação
+  publishedAt DateTime?
+  publishedUrl String? // URL do post publicado
+  campaignId  String? // ID da campanha gerada (se aplicável)
+  
+  // Asset library (depois de publicado)
+  assetId     String? // ID do asset na biblioteca (quando vira asset)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  approvals   Approval[]
+  
+  @@index([status])
+  @@index([stage])
+  @@index([channel])
+  @@index([company])
+  @@index([scheduledAt])
 }
 

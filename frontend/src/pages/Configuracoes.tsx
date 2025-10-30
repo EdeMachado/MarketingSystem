@@ -11,6 +11,7 @@ interface ApiStatus {
 
 export default function Configuracoes() {
   const [testing, setTesting] = useState(false);
+  const [domain, setDomain] = useState('')
 
   const { data: smtpStatus, refetch } = useQuery('smtp-check', async () => {
     const res = await api.get('/config/smtp/check');
@@ -26,6 +27,11 @@ export default function Configuracoes() {
     const res = await api.get('/api-config/status');
     return res.data.data;
   });
+
+  const { data: deliverability, refetch: refetchDeliverability } = useQuery(['deliverability', domain], async () => {
+    const res = await api.get('/config/deliverability', { params: { domain: domain || undefined } })
+    return res.data
+  })
 
   const testSMTP = async () => {
     setTesting(true);
@@ -139,6 +145,47 @@ export default function Configuracoes() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Deliverability check */}
+      <div className="bg-white shadow rounded-lg p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Checklist de Entregabilidade (SPF/DMARC)</h3>
+          <div className="flex items-center gap-2">
+            <input
+              placeholder="seu-dominio.com (opcional)"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+            />
+            <button className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700" onClick={() => refetchDeliverability()}>Verificar</button>
+          </div>
+        </div>
+        <div className="text-sm text-gray-700">
+          {deliverability?.success ? (
+            <div className="space-y-2">
+              <div><span className="font-medium">Domínio:</span> <span className="font-mono">{deliverability.data.domain}</span></div>
+              <div>
+                <span className="font-medium">SPF:</span>{' '}
+                {deliverability.data.spf.exists ? (
+                  <span className="text-green-700">Encontrado</span>
+                ) : (
+                  <span className="text-red-700">Não encontrado</span>
+                )}
+              </div>
+              <div>
+                <span className="font-medium">DMARC:</span>{' '}
+                {deliverability.data.dmarc.exists ? (
+                  <span className="text-green-700">Encontrado (política: {deliverability.data.dmarc.policy})</span>
+                ) : (
+                  <span className="text-red-700">Não encontrado</span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-gray-500">Informe o domínio acima ou deixe em branco para usar o domínio do SMTP.</div>
+          )}
+        </div>
       </div>
 
       {/* Instruções */}

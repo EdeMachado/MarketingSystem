@@ -20,7 +20,7 @@ router.get('/', async (req, res, next) => {
 // Criar segmento
 router.post('/', async (req, res, next) => {
   try {
-    const { name, description, filters } = req.body;
+    const { name, description, filters, type = 'dynamic' } = req.body;
 
     if (!name || !filters) {
       throw new AppError('Nome e filtros são obrigatórios', 400);
@@ -36,6 +36,7 @@ router.post('/', async (req, res, next) => {
         description,
         filters: JSON.stringify(filters),
         contactCount,
+        type,
       },
     });
 
@@ -90,24 +91,43 @@ async function applyFilters(filters: any) {
     where.status = filters.status;
   }
 
-  if (filters.tags && filters.tags.length > 0) {
-    where.tags = {
-      contains: filters.tags[0],
-    };
+  if (filters.optOut === true) {
+    where.optOut = true;
+  } else if (filters.optOut === false) {
+    where.optOut = false;
+  }
+
+  if (filters.emailValid === true) {
+    where.emailValid = true;
+  } else if (filters.emailValid === false) {
+    where.emailValid = false;
+  }
+
+  if (filters.tags && Array.isArray(filters.tags) && filters.tags.length > 0) {
+    // tags armazenadas como JSON string -> usar contains para qualquer uma
+    where.tags = { contains: filters.tags[0] };
   }
 
   if (filters.hasEmail === true) {
     where.email = { not: null };
+  } else if (filters.hasEmail === false) {
+    where.email = null
   }
 
   if (filters.hasPhone === true) {
     where.phone = { not: null };
+  } else if (filters.hasPhone === false) {
+    where.phone = null
   }
 
-  if (filters.createdAfter) {
-    where.createdAt = {
-      gte: new Date(filters.createdAfter),
-    };
+  if (filters.company) {
+    where.company = { contains: filters.company, mode: 'insensitive' }
+  }
+
+  if (filters.createdAfter || filters.createdBefore) {
+    where.createdAt = {}
+    if (filters.createdAfter) where.createdAt.gte = new Date(filters.createdAfter)
+    if (filters.createdBefore) where.createdAt.lte = new Date(filters.createdBefore)
   }
 
   const contacts = await prisma.contact.findMany({ where });

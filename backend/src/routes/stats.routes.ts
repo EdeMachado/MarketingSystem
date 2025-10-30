@@ -76,8 +76,6 @@ router.get('/period', async (req, res, next) => {
   }
 });
 
-export { router as statsRoutes };
-
 // Top links clicados (últimos 7 dias)
 router.get('/top-links', async (req, res, next) => {
   try {
@@ -95,4 +93,6 @@ router.get('/top-links', async (req, res, next) => {
     next(new AppError(error.message, 500));
   }
 });
+
+export { router as statsRoutes };
 

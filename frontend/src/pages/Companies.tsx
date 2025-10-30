@@ -105,13 +105,26 @@ export default function Companies() {
     }
   );
 
+  // Duplicados (fuzzy)
+  const [dupeOpen, setDupeOpen] = useState(false)
+  const [dupes, setDupes] = useState<Array<{ a: Company; b: Company; score: number }>>([])
+  const loadDupes = async () => {
+    try {
+      const r = await api.get('/companies/duplicates', { params: { threshold: 0.9, take: 1500 } })
+      setDupes(r.data.data || [])
+      setDupeOpen(true)
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Erro ao buscar duplicados')
+    }
+  }
+
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">🏢 Empresas</h1>
 
         {/* Filtros */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4 grid grid-cols-1 md:grid-cols-6 gap-3">
           <input
             placeholder="Buscar por nome, email, site, telefone"
             className="px-3 py-2 border border-gray-300 rounded-md"
@@ -159,12 +172,24 @@ export default function Companies() {
           >
             + Nova Empresa
           </button>
+          <button
+            onClick={() => {
+              const params = new URLSearchParams()
+              if (filters.city) params.set('city', filters.city)
+              if (filters.state) params.set('state', filters.state)
+              window.open('/api/export/companies/excel' + (params.toString() ? `?${params.toString()}` : ''), '_blank')
+            }}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            title="Exportar Excel com filtros atuais"
+          >
+            ⬇️ Exportar
+          </button>
         </div>
 
         {/* Importar via busca */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
           <h2 className="text-lg font-semibold mb-3">Importar automaticamente</h2>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
             <input id="q" placeholder="O que buscar (ex: clínicas)" className="px-3 py-2 border border-gray-300 rounded-md" />
             <input id="loc" placeholder="Local (ex: São Paulo, SP)" className="px-3 py-2 border border-gray-300 rounded-md" />
             <input id="radius" type="number" placeholder="Raio (m)" className="px-3 py-2 border border-gray-300 rounded-md" defaultValue={5000} />
@@ -182,6 +207,13 @@ export default function Companies() {
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
             >
               {importMutation.isLoading ? 'Importando...' : 'Importar da Busca'}
+            </button>
+            <button
+              onClick={loadDupes}
+              className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
+              title="Ver possíveis duplicados"
+            >
+              🔍 Duplicados
             </button>
           </div>
         </div>
@@ -274,7 +306,7 @@ export default function Companies() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal Edição */}
       {modalOpen && editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
@@ -348,6 +380,36 @@ export default function Companies() {
                   disabled={saveMutation.isLoading}
                 >Salvar</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Duplicados */}
+      {dupeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Possíveis Duplicados</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setDupeOpen(false)}>✕</button>
+            </div>
+            {dupes.length === 0 && <div className="text-gray-500">Nenhum duplicado encontrado com o limiar atual.</div>}
+            <div className="space-y-3">
+              {dupes.map((p, idx) => (
+                <div key={idx} className="border rounded p-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="font-medium">{p.a.name}</div>
+                      <div className="text-gray-600">{[p.a.email, p.a.phone, p.a.website].filter(Boolean).join(' • ')}</div>
+                    </div>
+                    <div className="px-2 text-xs text-gray-500">score {p.score}</div>
+                    <div className="flex-1 text-right">
+                      <div className="font-medium">{p.b.name}</div>
+                      <div className="text-gray-600">{[p.b.email, p.b.phone, p.b.website].filter(Boolean).join(' • ')}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -6,6 +6,50 @@ import { searchCompaniesByRegion, searchAndImportCompanies, importCompaniesAsCon
 const router = Router();
 const prisma = new PrismaClient();
 
+// Similaridade simples (Jaro-Winkler aproximado leve)
+function stringSimilarity(a: string, b: string): number {
+  a = a.toLowerCase().trim();
+  b = b.toLowerCase().trim();
+  if (a === b) return 1;
+  const al = a.length;
+  const bl = b.length;
+  const maxDist = Math.floor(Math.max(al, bl) / 2) - 1;
+  const aMatches = Array(al).fill(false);
+  const bMatches = Array(bl).fill(false);
+  let matches = 0;
+  let transpositions = 0;
+
+  for (let i = 0; i < al; i++) {
+    const start = Math.max(0, i - maxDist);
+    const end = Math.min(i + maxDist + 1, bl);
+    for (let j = start; j < end; j++) {
+      if (bMatches[j]) continue;
+      if (a[i] !== b[j]) continue;
+      aMatches[i] = true;
+      bMatches[j] = true;
+      matches++;
+      break;
+    }
+  }
+  if (matches === 0) return 0;
+  let k = 0;
+  for (let i = 0; i < al; i++) {
+    if (!aMatches[i]) continue;
+    while (!bMatches[k]) k++;
+    if (a[i] !== b[k]) transpositions++;
+    k++;
+  }
+  const m = matches;
+  let jaro = (m / al + m / bl + (m - transpositions / 2) / m) / 3;
+  // Winkler adjustment for common prefix up to 4 chars
+  let prefix = 0;
+  for (let i = 0; i < Math.min(4, al, bl); i++) {
+    if (a[i] === b[i]) prefix++; else break;
+  }
+  jaro += prefix * 0.1 * (1 - jaro);
+  return jaro;
+}
+
 // Listar empresas
 router.get('/', async (req, res, next) => {
   try {
@@ -33,6 +77,35 @@ router.get('/', async (req, res, next) => {
     const total = await prisma.company.count({ where });
 
     res.json({ success: true, data: { items: data, total } });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
+
+// Duplicados (fuzzy)
+router.get('/duplicates', async (req, res, next) => {
+  try {
+    const threshold = req.query.threshold ? Number(req.query.threshold) : 0.88
+    const take = req.query.take ? Number(req.query.take) : 2000
+    // Carregar últimas N empresas para comparação
+    const companies = await prisma.company.findMany({ orderBy: { createdAt: 'desc' }, take })
+    const pairs: Array<{ a: any; b: any; score: number } > = []
+    for (let i = 0; i < companies.length; i++) {
+      for (let j = i + 1; j < companies.length; j++) {
+        const a = companies[i]
+        const b = companies[j]
+        const nameScore = stringSimilarity(a.name, b.name)
+        const addrScore = a.address && b.address ? stringSimilarity(a.address, b.address) : 0
+        const websiteExact = a.website && b.website && a.website === b.website ? 1 : 0
+        const score = Math.max(nameScore * 0.7 + addrScore * 0.3, websiteExact)
+        if (score >= threshold) {
+          pairs.push({ a, b, score: Number(score.toFixed(3)) })
+        }
+      }
+    }
+    // Ordenar por score desc
+    pairs.sort((x, y) => y.score - x.score)
+    res.json({ success: true, data: pairs.slice(0, 200) })
   } catch (error: any) {
     next(new AppError(error.message, 500));
   }

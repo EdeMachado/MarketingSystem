@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import { isValidEmail, normalizePhone } from '../utils/validators';
+import { enrichCompany, enrichContact, normalizeName, normalizeAddress } from './lead-enrichment.service';
 
 const prisma = new PrismaClient();
 
@@ -248,10 +249,43 @@ const upsertCompany = async (company: CompanyData) => {
   }
   // Se não achou, deduplicar por (nome + address)
   if (!existing && name && address) {
-    existing = await prisma.company.findFirst({ where: { name, address } });
+    const nn = normalizeName(name) || name
+    const na = normalizeAddress(address) || address
+    existing = await prisma.company.findFirst({
+      where: {
+        OR: [
+          { name, address },
+          { normalizedName: nn, normalizedAddress: na },
+        ],
+      },
+    });
   }
 
   if (existing) {
+    const enriched = await enrichCompany({
+      ...existing,
+      name: company.name,
+      email: company.email || existing.email,
+      phone: company.phone || existing.phone,
+      whatsapp: company.whatsapp || existing.whatsapp,
+      website: website || existing.website,
+      address: address || existing.address,
+      city: company.city || existing.city,
+      state: company.state || existing.state,
+      zipCode: company.zipCode || existing.zipCode,
+      source: company.source || existing.source,
+      metadata: existing.metadata,
+      createdAt: existing.createdAt,
+      updatedAt: existing.updatedAt,
+      id: existing.id,
+      emailValid: existing.emailValid,
+      emailValidatedAt: existing.emailValidatedAt,
+      whatsappDetected: existing.whatsappDetected,
+      enrichedAt: existing.enrichedAt,
+      normalizedName: existing.normalizedName,
+      normalizedAddress: existing.normalizedAddress,
+    } as any)
+
     await prisma.company.update({
       where: { id: existing.id },
       data: {
@@ -268,10 +302,34 @@ const upsertCompany = async (company: CompanyData) => {
           ...(existing.metadata ? JSON.parse(existing.metadata) : {}),
           ...(company.metadata || {}),
         }),
+        ...enriched,
       },
     });
     return { updated: true };
   } else {
+    const enriched = await enrichCompany({
+      id: '' as any,
+      name: company.name,
+      email: company.email || null,
+      phone: company.phone || null,
+      whatsapp: company.whatsapp || null,
+      website,
+      address,
+      city: company.city || null,
+      state: company.state || null,
+      zipCode: company.zipCode || null,
+      source: company.source,
+      metadata: company.metadata ? JSON.stringify(company.metadata) : null,
+      createdAt: new Date() as any,
+      updatedAt: new Date() as any,
+      emailValid: null as any,
+      emailValidatedAt: null as any,
+      whatsappDetected: null as any,
+      enrichedAt: null as any,
+      normalizedName: null as any,
+      normalizedAddress: null as any,
+    })
+
     await prisma.company.create({
       data: {
         name: company.name,
@@ -285,6 +343,7 @@ const upsertCompany = async (company: CompanyData) => {
         zipCode: company.zipCode || null,
         source: company.source,
         metadata: company.metadata ? JSON.stringify(company.metadata) : null,
+        ...enriched,
       },
     });
     return { created: true };
@@ -337,7 +396,7 @@ export const importCompaniesAsContacts = async (
       }
 
       // Criar contato
-      await prisma.contact.create({
+      const created = await prisma.contact.create({
         data: {
           name: company.name,
           email: company.email || null,
@@ -357,6 +416,12 @@ export const importCompaniesAsContacts = async (
           }),
         },
       });
+
+      // Enriquecer contato recém-criado
+      const enrichedContact = await enrichContact(created as any)
+      if (Object.keys(enrichedContact).length) {
+        await prisma.contact.update({ where: { id: created.id }, data: enrichedContact })
+      }
 
       // Criar/atualizar Company
       await upsertCompany({ ...company, city, state });
