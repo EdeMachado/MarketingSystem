@@ -11,6 +11,7 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
     { path: '/buscar-empresas', label: 'Buscar Empresas', icon: '🔍' },
+    { path: '/empresas', label: 'Empresas', icon: '🏢' },
     { path: '/campanhas', label: 'Campanhas', icon: '📧' },
     { path: '/automacoes', label: 'Automações', icon: '⚙️' },
     { path: '/contatos', label: 'Contatos', icon: '👥' },

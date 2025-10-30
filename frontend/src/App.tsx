@@ -7,6 +7,7 @@ import Templates from './pages/Templates';
 import Configuracoes from './pages/Configuracoes';
 import CompanySearch from './pages/CompanySearch';
 import Automations from './pages/Automations';
+import Companies from './pages/Companies';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/contatos" element={<Contacts />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/buscar-empresas" element={<CompanySearch />} />
+        <Route path="/empresas" element={<Companies />} />
         <Route path="/automacoes" element={<Automations />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
       </Routes>
