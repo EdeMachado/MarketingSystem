@@ -71,10 +71,15 @@ export default function Companies() {
   };
 
   const saveMutation = useMutation(
-    async (payload: Partial<Company> & { id: string }) => {
+    async (payload: Partial<Company> & { id?: string }) => {
       const { id, ...data } = payload;
-      const res = await api.put(`/companies/${id}`, data);
-      return res.data.data as Company;
+      if (id) {
+        const res = await api.put(`/companies/${id}`, data);
+        return res.data.data as Company;
+      } else {
+        const res = await api.post(`/companies`, data);
+        return res.data.data as Company;
+      }
     },
     {
       onSuccess: () => {
@@ -106,7 +111,7 @@ export default function Companies() {
         <h1 className="text-3xl font-bold mb-6">🏢 Empresas</h1>
 
         {/* Filtros */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4 grid grid-cols-1 md:grid-cols-5 gap-3">
           <input
             placeholder="Buscar por nome, email, site, telefone"
             className="px-3 py-2 border border-gray-300 rounded-md"
@@ -130,6 +135,29 @@ export default function Companies() {
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
           >
             Filtrar
+          </button>
+          <button
+            onClick={() => {
+              setEditing({
+                id: '',
+                name: '',
+                email: '',
+                phone: '',
+                whatsapp: '',
+                website: '',
+                address: '',
+                city: '',
+                state: '',
+                zipCode: '',
+                source: 'manual',
+                metadata: '',
+                createdAt: new Date().toISOString(),
+              } as any);
+              setModalOpen(true);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            + Nova Empresa
           </button>
         </div>
 
@@ -251,7 +279,7 @@ export default function Companies() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Editar Empresa</h3>
+              <h3 className="text-lg font-semibold">{editing.id ? 'Editar Empresa' : 'Nova Empresa'}</h3>
               <button className="text-gray-500 hover:text-gray-700" onClick={closeModal}>✕</button>
             </div>
 
