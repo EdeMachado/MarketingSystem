@@ -47,7 +47,7 @@ router.get('/active', async (req, res, next) => {
   try {
     const campaigns = await prisma.campaign.findMany({
       where: {
-        status: 'scheduled',
+        status: { in: ['scheduled', 'running'] },
         isRecurring: true,
       },
       include: {
@@ -59,7 +59,25 @@ router.get('/active', async (req, res, next) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ success: true, data: campaigns });
+    // Enriquecer com informações dos canais agendados do metadata
+    const enrichedCampaigns = campaigns.map((campaign) => {
+      let scheduledChannels: string[] = [];
+      if (campaign.metadata) {
+        try {
+          const metadata = JSON.parse(campaign.metadata);
+          scheduledChannels = metadata.scheduledChannels || [];
+        } catch {
+          // Ignorar erro de parse
+        }
+      }
+
+      return {
+        ...campaign,
+        scheduledChannels,
+      };
+    });
+
+    res.json({ success: true, data: enrichedCampaigns });
   } catch (error: any) {
     next(new AppError(error.message, 500));
   }
@@ -68,10 +86,22 @@ router.get('/active', async (req, res, next) => {
 // Cancelar automação
 router.post('/:campaignId/cancel', async (req, res, next) => {
   try {
-    const result = await schedulerService.cancelSchedule(req.params.campaignId);
+    const { campaignId } = req.params;
+    
+    // Verificar se campanha existe
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign) {
+      throw new AppError('Campanha não encontrada', 404);
+    }
+
+    // Cancelar agendamento
+    const result = await schedulerService.cancelSchedule(campaignId);
     res.json({ success: true, data: result });
   } catch (error: any) {
-    next(new AppError(error.message, 500));
+    next(error instanceof AppError ? error : new AppError(error.message, 500));
   }
 });
 
@@ -80,8 +110,28 @@ router.post('/dispatch-now', async (req, res, next) => {
   try {
     const { campaignId, channels } = req.body;
 
-    if (!campaignId || !channels || !Array.isArray(channels)) {
-      throw new AppError('Campanha e canais são obrigatórios', 400);
+    if (!campaignId) {
+      throw new AppError('Campanha é obrigatória', 400);
+    }
+
+    if (!channels || !Array.isArray(channels) || channels.length === 0) {
+      throw new AppError('Pelo menos um canal deve ser selecionado', 400);
+    }
+
+    // Validar canais permitidos
+    const allowedChannels = ['email', 'whatsapp', 'instagram', 'facebook', 'linkedin'];
+    const invalidChannels = channels.filter((c: string) => !allowedChannels.includes(c));
+    if (invalidChannels.length > 0) {
+      throw new AppError(`Canais inválidos: ${invalidChannels.join(', ')}`, 400);
+    }
+
+    // Verificar se campanha existe
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign) {
+      throw new AppError('Campanha não encontrada', 404);
     }
 
     const result = await dispatchMultiChannel({
@@ -95,10 +145,11 @@ router.post('/dispatch-now', async (req, res, next) => {
 
     res.json({ success: true, data: result });
   } catch (error: any) {
-    next(new AppError(error.message, 500));
+    next(error instanceof AppError ? error : new AppError(error.message, 500));
   }
 });
 
 export { router as automationRoutes };
+
 
 

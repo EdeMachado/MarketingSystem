@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
+import { trackWhatsAppSent } from './channel-cost-tracker.service';
 
 const prisma = new PrismaClient();
 
@@ -180,9 +181,15 @@ export const sendBulkWhatsApp = async (
     }
   }
 
+  // Contar mensagens enviadas com sucesso e registrar no tracker
+  const successCount = results.filter((r) => r.success).length;
+  if (successCount > 0) {
+    trackWhatsAppSent(successCount);
+  }
+
   return {
     total: contacts.length,
-    success: results.filter((r) => r.success).length,
+    success: successCount,
     failed: results.filter((r) => !r.success).length,
     results,
   };

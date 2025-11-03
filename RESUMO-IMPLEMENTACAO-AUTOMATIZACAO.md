@@ -157,3 +157,5 @@ GOOGLE_PLACES_API_KEY=sua-chave-aqui
 **Data:** Janeiro 2025
 
 
+
+

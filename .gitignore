@@ -34,6 +34,14 @@ backend/prisma/dev.db-journal
 logs/
 *.log
 
+# API Usage Tracking
+api-usage-tracker.json
+backend/api-usage-tracker.json
+channel-usage-tracker.json
+backend/channel-usage-tracker.json
+channel-cost-config.json
+backend/channel-cost-config.json
+
 # OS
 Thumbs.db
 Desktop.ini

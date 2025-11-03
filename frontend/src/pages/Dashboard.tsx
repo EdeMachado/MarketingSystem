@@ -1,5 +1,4 @@
 import { useQuery } from 'react-query';
-import { format, subDays } from 'date-fns';
 import api from '../services/api';
 import {
   LineChart,
@@ -30,10 +29,6 @@ export default function Dashboard() {
     return res.data.data;
   });
 
-  const { data: stats } = useQuery('dashboard-stats', async () => {
-    const res = await api.get('/stats/overview');
-    return res.data.data;
-  });
   const { data: topLinks } = useQuery('top-links', async () => {
     const res = await api.get('/stats/top-links');
     return res.data.data as { url: string; count: number }[];
@@ -85,249 +80,380 @@ export default function Dashboard() {
   const clickRate = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0';
 
   return (
-    <div className="px-4 py-6 sm:px-0">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Dashboard - Grupo Biomed</h2>
-        <p className="text-gray-600 mt-2">Soluções em Saúde Ocupacional - Visão geral do marketing em tempo real</p>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-indigo-500 rounded-md p-3">
-                <span className="text-2xl">📊</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total de Campanhas</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{totalCampaigns}</dd>
-                  <dd className="text-xs text-gray-500">{activeCampaigns} ativas</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h2 className="text-4xl font-bold text-gray-900 mb-2">📊 Dashboard - Grupo Biomed</h2>
+          <p className="text-gray-600 text-lg">Soluções em Saúde Ocupacional - Visão geral do marketing em tempo real</p>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
-                <span className="text-2xl">👥</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total de Contatos</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{totalContacts}</dd>
-                  <dd className="text-xs text-green-600">Crescimento constante</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
-                <span className="text-2xl">📧</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Taxa de Abertura</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{openRate}%</dd>
-                  <dd className="text-xs text-gray-500">{totalOpened} de {totalSent} abertos</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
-                <span className="text-2xl">🖱️</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Taxa de Cliques</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{clickRate}%</dd>
-                  <dd className="text-xs text-gray-500">{totalClicked} cliques totais</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* KPIs de Entrega/Abertura/Clique/Não vistos */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-emerald-500 rounded-md p-3"><span className="text-2xl">📨</span></div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Enviados</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{totalSent}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-teal-500 rounded-md p-3"><span className="text-2xl">✅</span></div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Entregues</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{totalDelivered}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-yellow-500 rounded-md p-3"><span className="text-2xl">👁️</span></div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Não vistos</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{totalUnseen}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-rose-500 rounded-md p-3"><span className="text-2xl">❌</span></div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Falhas</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{totalFailed}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Gráfico de Campanhas */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Performance das Campanhas
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={campaignStats}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="enviados" fill="#6366f1" name="Enviados" />
-              <Bar dataKey="aberturas" fill="#10b981" name="Aberturas" />
-              <Bar dataKey="cliques" fill="#f59e0b" name="Cliques" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Gráfico de Plataformas */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Distribuição por Plataforma
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={platformChart}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {platformChart.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Segundo Row de Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Status das Campanhas */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Status das Campanhas
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={statusChart}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {statusChart.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Timeline de Aberturas */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Timeline de Performance
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={campaignStats}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="aberturas" stroke="#10b981" name="Aberturas" />
-              <Line type="monotone" dataKey="cliques" stroke="#f59e0b" name="Cliques" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        {/* Top Links Clicados */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Top Links Clicados (7 dias)
-          </h3>
-          <div className="space-y-2 text-sm">
-            {topLinks?.length ? (
-              topLinks.map((l, i) => (
-                <div key={i} className="flex items-center justify-between border-b last:border-0 pb-2">
-                  <a href={l.url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline truncate max-w-[75%]">
-                    {l.url}
-                  </a>
-                  <span className="text-gray-600">{l.count} cliques</span>
+        {/* Cards Principais - Estilo Widget Completo */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Card: Visão Geral de Campanhas */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-800 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Campanhas</h3>
+                  <p className="text-gray-300 text-xs">Visão geral completa</p>
                 </div>
-              ))
+                <div className="bg-gray-700 rounded-lg px-4 py-2">
+                  <span className="text-3xl font-bold text-white">{totalCampaigns}</span>
+                  <p className="text-xs text-gray-300">Total</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-2xl font-bold text-gray-900">{activeCampaigns}</div>
+                  <div className="text-xs text-gray-600 mt-1">Ativas</div>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-2xl font-bold text-gray-900">{completedCampaigns}</div>
+                  <div className="text-xs text-gray-600 mt-1">Concluídas</div>
+                </div>
+                <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-2xl font-bold text-gray-900">
+                    {campaigns?.filter((c: any) => c.status === 'scheduled').length || 0}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Agendadas</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Base de Contatos */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-800 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Base de Contatos</h3>
+                  <p className="text-gray-300 text-xs">Sua lista de prospects</p>
+                </div>
+                <div className="bg-gray-700 rounded-lg px-4 py-2">
+                  <span className="text-3xl font-bold text-white">{totalContacts}</span>
+                  <p className="text-xs text-gray-300">Contatos</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Com Email</span>
+                  <span className="font-semibold text-gray-900">
+                    {contacts?.filter((c: any) => c.email).length || 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Com Telefone</span>
+                  <span className="font-semibold text-gray-900">
+                    {contacts?.filter((c: any) => c.phone).length || 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Ativos</span>
+                  <span className="font-semibold text-gray-900">
+                    {contacts?.filter((c: any) => c.status === 'active').length || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards de Performance */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Card: Métricas de Email */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-800 px-6 py-4">
+              <h3 className="text-lg font-semibold text-white">Performance de Email</h3>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-sm text-gray-600 mb-1">Taxa de Abertura</div>
+                  <div className="text-3xl font-bold text-gray-900">{openRate}%</div>
+                  <div className="text-xs text-gray-500 mt-1">{totalOpened} de {totalSent}</div>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-sm text-gray-600 mb-1">Taxa de Cliques</div>
+                  <div className="text-3xl font-bold text-gray-900">{clickRate}%</div>
+                  <div className="text-xs text-gray-500 mt-1">{totalClicked} cliques</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  <div className="text-lg font-bold text-gray-900">{totalSent}</div>
+                  <div className="text-xs text-gray-500">Enviados</div>
+                </div>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  <div className="text-lg font-bold text-gray-900">{totalDelivered}</div>
+                  <div className="text-xs text-gray-500">Entregues</div>
+                </div>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  <div className="text-lg font-bold text-gray-900">{totalUnseen}</div>
+                  <div className="text-xs text-gray-500">Não vistos</div>
+                </div>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  <div className="text-lg font-bold text-gray-900">{totalFailed}</div>
+                  <div className="text-xs text-gray-500">Falhas</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Status de Envio */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-800 px-6 py-4">
+              <h3 className="text-lg font-semibold text-white">Status de Envio</h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Entregues</span>
+                    <span className="font-semibold">{totalDelivered} ({totalSent > 0 ? ((totalDelivered/totalSent)*100).toFixed(1) : 0}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gray-700 h-2 rounded-full" 
+                      style={{ width: `${totalSent > 0 ? (totalDelivered/totalSent)*100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Abertos</span>
+                    <span className="font-semibold">{totalOpened} ({openRate}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gray-600 h-2 rounded-full" 
+                      style={{ width: `${openRate}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Cliques</span>
+                    <span className="font-semibold">{totalClicked} ({clickRate}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gray-500 h-2 rounded-full" 
+                      style={{ width: `${clickRate}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Falhas</span>
+                    <span className="font-semibold">{totalFailed}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gray-400 h-2 rounded-full" 
+                      style={{ width: `${totalSent > 0 ? (totalFailed/totalSent)*100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards de Gráficos - Estilo Widget Completo */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Widget: Performance das Campanhas */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-800 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Performance das Campanhas</h3>
+                <div className="bg-gray-700 rounded-full px-3 py-1">
+                  <span className="text-xs text-white font-medium">Análise</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 bg-gray-50">
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={campaignStats}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} stroke="#6b7280" fontSize={12} />
+                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Bar dataKey="enviados" fill="#6b7280" name="Enviados" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="aberturas" fill="#4b5563" name="Aberturas" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cliques" fill="#9ca3af" name="Cliques" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Widget: Distribuição por Plataforma */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-800 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Canais Utilizados</h3>
+                <div className="bg-gray-700 rounded-full px-3 py-1">
+                  <span className="text-xs text-white font-medium">{Object.keys(platformData).length} canais</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={platformChart}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }: any) => `${name}\n${(percent * 100).toFixed(0)}%`}
+                    outerRadius={110}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {platformChart.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {platformChart.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-2 text-sm">
+                    <div 
+                      className="w-4 h-4 rounded" 
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    ></div>
+                    <span className="text-gray-600">{entry.name}</span>
+                    <span className="ml-auto font-semibold text-gray-900">{String(entry.value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Segunda Linha de Widgets */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Widget: Status das Campanhas */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-800 px-6 py-4">
+              <h3 className="text-lg font-semibold text-white">Status das Campanhas</h3>
+            </div>
+            <div className="p-6">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={statusChart}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }: any) => `${name}: ${value}`}
+                    outerRadius={90}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {statusChart.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={['#4b5563', '#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb'][index % 5]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Widget: Timeline de Performance */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow lg:col-span-2">
+            <div className="bg-gray-800 px-6 py-4">
+              <h3 className="text-lg font-semibold text-white">Timeline de Performance</h3>
+            </div>
+            <div className="p-6 bg-gray-50">
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={campaignStats}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} stroke="#6b7280" fontSize={12} />
+                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="aberturas" 
+                    stroke="#6b7280" 
+                    name="Aberturas"
+                    strokeWidth={2}
+                    dot={{ fill: '#6b7280', r: 4 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="cliques" 
+                    stroke="#4b5563" 
+                    name="Cliques"
+                    strokeWidth={2}
+                    dot={{ fill: '#4b5563', r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Widget: Top Links */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+          <div className="bg-gray-800 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Top Links Mais Clicados</h3>
+              <div className="bg-gray-700 rounded-full px-3 py-1">
+                <span className="text-xs text-white font-medium">Últimos 7 dias</span>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            {topLinks && topLinks.length > 0 ? (
+              <div className="space-y-3">
+                {topLinks.map((l, i) => (
+                  <div 
+                    key={i} 
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-gray-700 font-bold text-sm">#{i + 1}</span>
+                      </div>
+                      <a 
+                        href={l.url} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-gray-700 hover:text-gray-900 hover:underline truncate flex-1 font-medium"
+                      >
+                        {l.url}
+                      </a>
+                    </div>
+                    <div className="flex-shrink-0 ml-4 px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm font-semibold">
+                      {l.count} {l.count === 1 ? 'clique' : 'cliques'}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="text-gray-500">Sem cliques no período</div>
+              <div className="text-center py-12">
+                <div className="text-gray-400 text-4xl mb-3">🔗</div>
+                <p className="text-gray-500">Nenhum link foi clicado ainda</p>
+                <p className="text-gray-400 text-sm mt-1">Os cliques aparecerão aqui conforme os usuários interagem</p>
+              </div>
             )}
           </div>
         </div>

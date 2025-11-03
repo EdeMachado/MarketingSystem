@@ -1,73 +1,114 @@
-import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { ReactNode, useEffect, useRef } from 'react';
+import { useQuery } from 'react-query';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const location = useLocation();
+  const shownAlerts = useRef<Set<string>>(new Set());
 
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: '📊' },
-    { path: '/buscar-empresas', label: 'Buscar Empresas', icon: '🔍' },
-    { path: '/empresas', label: 'Empresas', icon: '🏢' },
-    { path: '/campanhas', label: 'Campanhas', icon: '📧' },
-    { path: '/automacoes', label: 'Automações', icon: '⚙️' },
-    { path: '/contatos', label: 'Contatos', icon: '👥' },
-    { path: '/segmentos', label: 'Segmentos', icon: '🗂️' },
-    { path: '/producao', label: 'Produção', icon: '🎬' },
-    { path: '/ativos', label: 'Ativos', icon: '🎛️' },
-    { path: '/relatorios', label: 'Relatórios', icon: '📈' },
-    { path: '/insights', label: 'Insights', icon: '💡' },
-    { path: '/templates', label: 'Templates', icon: '📝' },
-    { path: '/configuracoes', label: 'Configurações', icon: '🔧' },
-  ];
+  // Verificar alertas de uso da API globalmente (Google Places)
+  const { data: apiAlertsData } = useQuery(
+    'api-usage-alerts',
+    async () => {
+      try {
+        const res = await api.get('/api-usage/alerts');
+        return res.data.data;
+      } catch {
+        return { alerts: [] };
+      }
+    },
+    {
+      refetchInterval: 30000, // Verificar a cada 30 segundos
+      refetchOnWindowFocus: true,
+    }
+  );
+
+  // Verificar alertas de custos dos canais
+  const { data: channelAlertsData } = useQuery(
+    'channel-costs-alerts',
+    async () => {
+      try {
+        const res = await api.get('/channel-costs/alerts');
+        return res.data.data || [];
+      } catch {
+        return [];
+      }
+    },
+    {
+      refetchInterval: 30000, // Verificar a cada 30 segundos
+      refetchOnWindowFocus: true,
+    }
+  );
+
+  // Mostrar alertas como notificações (sem duplicar)
+  useEffect(() => {
+    // Alertas do Google Places API
+    if (apiAlertsData?.alerts && apiAlertsData.alerts.length > 0) {
+      apiAlertsData.alerts.forEach((alert: any) => {
+        const alertKey = `api-${alert.type}-${alert.message.substring(0, 50)}`;
+        
+        if (!shownAlerts.current.has(alertKey)) {
+          shownAlerts.current.add(alertKey);
+          
+          if (alert.type === 'danger') {
+            toast.error(alert.message, { 
+              duration: 20000,
+              icon: '🚨',
+              position: 'top-center',
+            });
+          } else if (alert.type === 'warning') {
+            toast(alert.message, {
+              icon: '⚠️',
+              duration: 12000,
+              position: 'top-center',
+            });
+          }
+        }
+      });
+    }
+
+    // Alertas de custos dos canais (Email, WhatsApp, etc)
+    if (channelAlertsData && channelAlertsData.length > 0) {
+      channelAlertsData.forEach((alert: any) => {
+        const alertKey = `channel-${alert.channel}-${alert.type}-${alert.message.substring(0, 50)}`;
+        
+        if (!shownAlerts.current.has(alertKey)) {
+          shownAlerts.current.add(alertKey);
+          
+          if (alert.type === 'critical') {
+            toast.error(alert.message, { 
+              duration: 20000,
+              icon: '🚨',
+              position: 'top-center',
+            });
+          } else if (alert.type === 'warning') {
+            toast(alert.message, {
+              icon: '⚠️',
+              duration: 12000,
+              position: 'top-center',
+            });
+          }
+        }
+      });
+    }
+    
+    // Limpar alertas antigos após 5 minutos
+    const cleanup = setTimeout(() => {
+      shownAlerts.current.clear();
+    }, 300000);
+    
+    return () => clearTimeout(cleanup);
+  }, [apiAlertsData?.alerts, channelAlertsData]);
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Sidebar em azul marinho */}
-      <aside className="hidden md:flex md:flex-col w-64 bg-blue-900 text-white">
-        <div className="h-16 flex items-center px-4 border-b border-blue-800">
-          <div>
-            <div className="text-lg font-bold">Grupo Biomed</div>
-            <div className="text-xs text-blue-200">Marketing System</div>
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto py-3">
-          <ul className="space-y-1 px-2">
-            {navItems.map((item) => {
-              const active = location.pathname === item.path;
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                      active
-                        ? 'bg-blue-700 text-white'
-                        : 'text-blue-100 hover:bg-blue-800 hover:text-white'
-                    }`}
-                  >
-                    <span className="mr-2">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <div className="px-4 py-3 text-xs text-blue-200 border-t border-blue-800">
-          © {new Date().getFullYear()} Grupo Biomed
-        </div>
-      </aside>
-
-      {/* Conteúdo */}
-      <div className="flex-1 min-w-0">
-        {/* Topbar em telas pequenas */}
-        <div className="md:hidden bg-blue-900 text-white px-4 py-3">Grupo Biomed - Marketing</div>
-        <main className="p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-50">
+      {/* Conteúdo - Sem menu lateral */}
+      <div className="w-full">
+        <main>
           {children}
         </main>
       </div>

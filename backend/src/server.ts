@@ -28,6 +28,10 @@ import { projectsRoutes } from './routes/projects.routes';
 import { assetsRoutes } from './routes/assets.routes';
 import { advertisementRoutes } from './routes/advertisement.routes';
 import { aiGeneratorRoutes } from './routes/ai-generator.routes';
+import apiUsageRoutes from './routes/api-usage.routes';
+import seoRoutes from './routes/seo.routes';
+import autoPublishRoutes from './routes/auto-publish.routes';
+import channelCostsRoutes from './routes/channel-costs.routes';
 
 dotenv.config();
 
@@ -71,6 +75,10 @@ app.use('/api/projects', projectsRoutes);
 app.use('/api', assetsRoutes);
 app.use('/api/advertisements', advertisementRoutes);
 app.use('/api/ai', aiGeneratorRoutes);
+app.use('/api/api-usage', apiUsageRoutes);
+app.use('/api/seo', seoRoutes);
+app.use('/api/auto-publish', autoPublishRoutes);
+app.use('/api/channel-costs', channelCostsRoutes);
 
 // Carregar campanhas agendadas na inicialização
 schedulerService.loadScheduledCampaigns().catch(console.error);

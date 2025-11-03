@@ -3,6 +3,7 @@ import { sendBulkEmails } from './email.service';
 import { sendBulkWhatsApp } from './whatsapp.service';
 import { createFacebookPost, createInstagramPost } from './social.service';
 import { generateMultiChannelTemplates } from './template-generator.service';
+import { schedulerService } from './scheduler.service';
 
 const prisma = new PrismaClient();
 
@@ -19,12 +20,23 @@ interface DispatcherConfig {
 export const dispatchMultiChannel = async (config: DispatcherConfig) => {
   const { campaignId, channels, options = {} } = config;
   
-  // Buscar campanha
+  // Buscar campanha (otimizado - apenas campos necessários)
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
     include: {
       contacts: {
-        include: { contact: true },
+        include: {
+          contact: {
+            select: {
+              id: true,
+              email: true,
+              phone: true,
+              name: true,
+              status: true,
+              optOut: true,
+            },
+          },
+        },
       },
     },
   });
@@ -162,13 +174,36 @@ export const scheduleDailyMultiChannel = async (
     onlyNewContacts?: boolean; // Disparar apenas para contatos novos
   }
 ) => {
-  const [hours, minutes] = time.split(':').map(Number);
+  // Validar horário
+  const timeMatch = time.match(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/);
+  if (!timeMatch) {
+    throw new Error('Formato de horário inválido. Use HH:MM (ex: 09:00)');
+  }
+
+  const [, hoursStr, minutesStr] = timeMatch;
+  const hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
   const cronExpression = `${minutes} ${hours} * * *`; // Diário no horário especificado
+
+  // Verificar se campanha existe
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+  });
+
+  if (!campaign) {
+    throw new Error('Campanha não encontrada');
+  }
+
+  // Salvar configuração de canais no metadata da campanha
+  const metadata = campaign.metadata ? JSON.parse(campaign.metadata) : {};
+  metadata.scheduledChannels = channels;
+  metadata.onlyNewContacts = options?.onlyNewContacts || false;
 
   // Importar cron
   const cron = await import('node-cron');
   
-  const task = cron.default.schedule(cronExpression, async () => {
+  // Criar função de execução
+  const executeTask = async () => {
     try {
       // Se configurado, adicionar apenas contatos novos
       if (options?.onlyNewContacts) {
@@ -186,8 +221,22 @@ export const scheduleDailyMultiChannel = async (
       });
     } catch (error: any) {
       console.error(`Erro ao executar disparo diário da campanha ${campaignId}:`, error.message);
+      
+      // Atualizar status da campanha em caso de erro
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          status: 'failed',
+        },
+      });
     }
-  });
+  };
+
+  // Agendar tarefa cron
+  const task = cron.default.schedule(cronExpression, executeTask);
+
+  // Registrar tarefa no scheduler service para permitir cancelamento
+  schedulerService.registerTask(campaignId, task);
 
   // Atualizar campanha
   await prisma.campaign.update({
@@ -196,7 +245,9 @@ export const scheduleDailyMultiChannel = async (
       status: 'scheduled',
       isRecurring: true,
       recurrenceType: 'daily',
+      recurrenceValue: hours, // Salvar horário
       scheduledAt: new Date(), // Próxima execução
+      metadata: JSON.stringify(metadata),
     },
   });
 
@@ -213,20 +264,40 @@ export const scheduleDailyMultiChannel = async (
 const addNewContactsToCampaign = async (campaignId: string) => {
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
-    include: { contacts: true },
+    select: {
+      id: true,
+      contacts: {
+        select: {
+          contactId: true,
+        },
+      },
+    },
   });
 
   if (!campaign) return;
 
-  // Buscar contatos que não estão na campanha
+  // Buscar contatos que não estão na campanha (otimizado)
   const existingContactIds = campaign.contacts.map((cc) => cc.contactId);
 
+  // Se não há contatos existentes, buscar apenas os mais recentes
+  const whereClause: any = {
+    status: 'active',
+    optOut: false,
+  };
+
+  if (existingContactIds.length > 0) {
+    whereClause.id = { notIn: existingContactIds };
+  }
+
   const newContacts = await prisma.contact.findMany({
-    where: {
-      id: { notIn: existingContactIds },
-      status: 'active',
+    where: whereClause,
+    orderBy: {
+      createdAt: 'desc',
     },
     take: 100, // Limitar para não sobrecarregar
+    select: {
+      id: true,
+    },
   });
 
   // Adicionar à campanha

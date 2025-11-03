@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { PrismaClient } from '@prisma/client';
 import { generateTrackingToken, processTemplateWithTracking } from './tracking.service';
+import { trackEmailSent } from './channel-cost-tracker.service';
 
 const prisma = new PrismaClient();
 
@@ -276,9 +277,9 @@ export const sendBulkEmails = async (
       });
 
       // Bounce handling básico
-      const dbContact = await prisma.contact.findFirst({ where: { email: contact.email } })
+      const dbContact = await prisma.contact.findFirst({ where: { email: contact.email } });
       if (dbContact) {
-        const isBounce = /550|user unknown|mailbox unavailable|bounce/i.test(error.message || '')
+        const isBounce = /550|user unknown|mailbox unavailable|bounce/i.test(error.message || '');
         await prisma.contact.update({
           where: { id: dbContact.id },
           data: {
@@ -287,22 +288,27 @@ export const sendBulkEmails = async (
             validationReason: isBounce ? 'bounce' : dbContact.validationReason,
             bounceCount: { increment: 1 } as any,
           },
-        })
+        });
         if (campaignId) {
           await prisma.campaignContact.upsert({
             where: { campaignId_contactId: { campaignId, contactId: dbContact.id } },
             update: { status: 'failed', error: error.message },
             create: { campaignId, contactId: dbContact.id, status: 'failed', error: error.message },
-          })
+          });
         }
       }
     }
   }
 
+  // Contar emails enviados com sucesso e registrar no tracker
+  const successCount = results.filter((r: any) => r.success).length;
+  if (successCount > 0) {
+    trackEmailSent(successCount);
+  }
+
   return {
-    total: contacts.length,
-    success: results.filter((r) => (r as any).success).length,
-    failed: results.filter((r) => !(r as any).success).length,
+    success: successCount,
+    failed: results.length - successCount,
     results,
   };
 };

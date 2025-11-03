@@ -355,3 +355,30 @@ model Advertisement {
   @@index([scheduledAt])
 }
 
+model SeoPage {
+  id              String   @id @default(uuid())
+  title           String   // Meta title
+  metaDescription String?  // Meta description
+  slug            String   @unique // URL amigável (ex: "saude-ocupacional")
+  h1              String   // Título principal H1
+  h2s             String?  // JSON array de H2s
+  content         String   // Conteúdo completo (Markdown/HTML)
+  keywords        String?  // JSON array de palavras-chave
+  contentType     String   @default("article") // article, landing, blog
+  status          String   @default("draft") // draft, ready, published
+  wordCount       Int?     // Contagem de palavras
+  readabilityScore Int?    // Score de legibilidade (0-100)
+  uploadedToSite  Boolean  @default(false) // Se foi enviado para o site via FTP
+  uploadedAt      DateTime? // Data do upload para o site
+  googleSubmitted Boolean  @default(false) // Se foi submetido ao Google Search Console
+  googleSubmittedAt DateTime? // Data da submissão ao Google
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([slug])
+  @@index([status])
+  @@index([contentType])
+  @@index([uploadedToSite])
+  @@index([googleSubmitted])
+}
+

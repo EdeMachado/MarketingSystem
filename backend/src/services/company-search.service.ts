@@ -2,6 +2,8 @@ import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import { isValidEmail, normalizePhone } from '../utils/validators';
 import { enrichCompany, enrichContact, normalizeName, normalizeAddress } from './lead-enrichment.service';
+import { trackTextSearch, trackPlaceDetails } from './api-usage-tracker.service';
+import { extractSocialMediaFromWebsite, findWhatsAppBusiness } from './social-media-extractor.service';
 
 const prisma = new PrismaClient();
 
@@ -74,6 +76,9 @@ export const searchGooglePlaces = async (params: CompanySearchParams): Promise<C
         params: requestParams,
       });
 
+      // Registrar busca de texto
+      trackTextSearch();
+
       const pageResults = response.data.results || [];
 
       if (pageResults.length === 0) {
@@ -98,6 +103,9 @@ export const searchGooglePlaces = async (params: CompanySearchParams): Promise<C
           }
         );
 
+        // Registrar busca de detalhes
+        trackPlaceDetails();
+
         const details = detailsResponse.data.result;
         
         // Tentar encontrar email no website (se houver)
@@ -112,11 +120,24 @@ export const searchGooglePlaces = async (params: CompanySearchParams): Promise<C
           phone = normalizePhone(phone);
         }
 
+        // Buscar redes sociais e WhatsApp do website
+        let socialMedia: any = {};
+        let whatsappFromSite: string | undefined;
+        if (details?.website) {
+          try {
+            socialMedia = await extractSocialMediaFromWebsite(details.website);
+            whatsappFromSite = await findWhatsAppBusiness(details.website, phone);
+          } catch (error) {
+            // Continuar mesmo se falhar
+            console.log(`Erro ao buscar redes sociais: ${error}`);
+          }
+        }
+
         const company: CompanyData = {
           name: (details && details.name) || place.name,
           email,
           phone,
-          whatsapp: phone, // Assumir que telefone pode ser WhatsApp
+          whatsapp: whatsappFromSite || phone, // WhatsApp do site ou telefone
           address: details?.formatted_address,
           website: details?.website,
           source: 'google',
@@ -125,6 +146,7 @@ export const searchGooglePlaces = async (params: CompanySearchParams): Promise<C
             types: (details && details.types) || place.types,
             rating: place.rating,
             geometry: details?.geometry,
+            socialMedia: Object.keys(socialMedia).length > 0 ? socialMedia : undefined, // LinkedIn, Instagram, Facebook, Telegram, etc
           },
         };
 

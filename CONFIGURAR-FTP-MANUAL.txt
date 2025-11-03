@@ -1,0 +1,46 @@
+===========================================
+  CONFIGURAR FTP - MODO MANUAL
+===========================================
+
+INSTRUCOES:
+
+1. Abra o arquivo: backend\.env
+2. Adicione estas linhas no final:
+
+-------------------------------------------
+# Site Configuration
+SITE_URL=https://grupobiomed.com
+
+# FTP Upload (para upload automatico de paginas SEO)
+FTP_HOST=ftp.grupobiomed.com
+FTP_USER=seu-usuario-ftp-aqui
+FTP_PASS=sua-senha-ftp-aqui
+FTP_PATH=/public_html/
+FTP_PORT=21
+-------------------------------------------
+
+3. Substitua:
+   - ftp.grupobiomed.com → pelo Host FTP que voce encontrou
+   - seu-usuario-ftp-aqui → pelo Usuario FTP que voce encontrou
+   - sua-senha-ftp-aqui → pela Senha FTP que voce encontrou
+   - /public_html/ → pelo caminho (geralmente e este)
+
+4. Salve o arquivo (Ctrl+S)
+
+5. Pronto! Agora e automatico.
+
+===========================================
+ONDE ENCONTRAR AS CREDENCIAIS:
+===========================================
+
+1. Acesse: grupobiomed.com/cpanel
+2. Clique em "FTP Accounts"
+3. Copie: Host, Usuario, Senha
+
+OU
+
+Veja: PASSO-A-PASSO-CONFIGURAR-FTP.md
+
+===========================================
+
+

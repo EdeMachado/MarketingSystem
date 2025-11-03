@@ -181,3 +181,5 @@ Se resultado > 0: Você paga a diferença
 **💡 Dica**: Configure um alerta no Google Cloud Console para avisar se ultrapassar $50/mês (dificilmente acontecerá).
 
 
+
+

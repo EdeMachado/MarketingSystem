@@ -240,7 +240,7 @@ Apoio psicológico e acolhimento para promover bem-estar emocional da equipe.
 📞 Entre em contato e solicite uma proposta personalizada:
 📧 contato@grupobiomed.com
 🌐 www.grupobiomed.com
-📞 [Seu telefone]
+📞 (11) 94003-1033
 
 #GrupoBiomed #MedicinaDoTrabalho #SaudeOcupacional #Empresas #BemEstar #SegurancaDoTrabalho`,
   },

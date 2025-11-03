@@ -12,6 +12,7 @@ interface Campaign {
   recurrenceType: string | null;
   recurrenceValue: number | null;
   scheduledAt: string | null;
+  scheduledChannels?: string[];
   stats?: {
     total: number;
     sent: number;
@@ -37,7 +38,7 @@ export default function Automations() {
   });
 
   // Buscar automações ativas
-  const { data: activeAutomations, refetch: refetchAutomations } = useQuery<Campaign[]>(
+  const { data: activeAutomations } = useQuery<Campaign[]>(
     'active-automations',
     async () => {
       const res = await api.get('/automation/active');
@@ -261,6 +262,21 @@ export default function Automations() {
                           <span className="font-medium">Recorrência:</span>{' '}
                           {getRecurrenceInfo(campaign) || 'Não configurado'}
                         </p>
+                        {campaign.scheduledChannels && campaign.scheduledChannels.length > 0 && (
+                          <p>
+                            <span className="font-medium">Canais:</span>{' '}
+                            <span className="inline-flex gap-1 flex-wrap">
+                              {campaign.scheduledChannels.map((channel) => (
+                                <span
+                                  key={channel}
+                                  className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs capitalize"
+                                >
+                                  {channel}
+                                </span>
+                              ))}
+                            </span>
+                          </p>
+                        )}
                         <p>
                           <span className="font-medium">Contatos:</span> {campaign._count?.contacts || 0}
                         </p>
@@ -272,34 +288,48 @@ export default function Automations() {
                         )}
                         <p>
                           <span className="font-medium">Status:</span>{' '}
-                          <span className="text-green-600 font-semibold">✓ Ativa</span>
+                          <span
+                            className={`font-semibold ${
+                              campaign.status === 'scheduled'
+                                ? 'text-green-600'
+                                : campaign.status === 'running'
+                                ? 'text-blue-600'
+                                : 'text-gray-600'
+                            }`}
+                          >
+                            {campaign.status === 'scheduled' ? '✓ Agendada' : campaign.status === 'running' ? '▶ Em execução' : campaign.status}
+                          </span>
                         </p>
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
                       <button
                         onClick={() => {
-                          const channels = ['email', 'whatsapp'];
+                          const channels = campaign.scheduledChannels && campaign.scheduledChannels.length > 0
+                            ? campaign.scheduledChannels
+                            : ['email', 'whatsapp'];
                           dispatchMutation.mutate({
                             campaignId: campaign.id,
                             channels,
                           });
                         }}
                         disabled={dispatchMutation.isLoading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm transition-colors"
+                        title="Executar disparo imediatamente"
                       >
-                        ▶️ Disparar Agora
+                        {dispatchMutation.isLoading ? '⏳ Disparando...' : '▶️ Disparar Agora'}
                       </button>
                       <button
                         onClick={() => {
-                          if (confirm('Tem certeza que deseja cancelar esta automação?')) {
+                          if (window.confirm('Tem certeza que deseja cancelar esta automação?')) {
                             cancelMutation.mutate(campaign.id);
                           }
                         }}
                         disabled={cancelMutation.isLoading}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm"
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm transition-colors"
+                        title="Cancelar automação agendada"
                       >
-                        ⏹️ Cancelar
+                        {cancelMutation.isLoading ? '⏳ Cancelando...' : '⏹️ Cancelar'}
                       </button>
                     </div>
                   </div>
@@ -317,5 +347,6 @@ export default function Automations() {
     </div>
   );
 }
+
 
 

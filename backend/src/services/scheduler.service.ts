@@ -116,6 +116,17 @@ class SchedulerService {
     return { success: true, cronExpression };
   }
 
+  // Registrar tarefa externa (para multi-channel dispatcher)
+  registerTask(campaignId: string, task: cron.ScheduledTask) {
+    // Se já existe uma tarefa para essa campanha, cancelá-la primeiro
+    const existingTask = this.tasks.get(campaignId);
+    if (existingTask) {
+      existingTask.stop();
+    }
+    
+    this.tasks.set(campaignId, task);
+  }
+
   // Cancelar agendamento
   async cancelSchedule(campaignId: string) {
     const task = this.tasks.get(campaignId);
