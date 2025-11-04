@@ -44,20 +44,27 @@ router.get('/:id', async (req, res, next) => {
 // Criar template
 router.post('/', async (req, res, next) => {
   try {
-    const { name, subject, body, textBody, type, variables } = req.body;
+    const { name, subject, body, textBody, type, variables, category, preview } = req.body;
 
-    if (!name || !subject || !body) {
-      throw new AppError('Nome, assunto e corpo são obrigatórios', 400);
+    if (!name || !body) {
+      throw new AppError('Nome e corpo são obrigatórios', 400);
+    }
+
+    // Subject é obrigatório apenas para emails
+    if ((!type || type === 'email') && !subject) {
+      throw new AppError('Assunto é obrigatório para emails', 400);
     }
 
     const template = await prisma.emailTemplate.create({
       data: {
         name,
-        subject,
+        subject: subject || null,
         body,
-        textBody,
+        textBody: textBody || null,
         type: type || 'email',
         variables: variables ? JSON.stringify(variables) : null,
+        category: category || null,
+        preview: preview || null,
       },
     });
 
@@ -70,16 +77,18 @@ router.post('/', async (req, res, next) => {
 // Atualizar template
 router.put('/:id', async (req, res, next) => {
   try {
-    const { name, subject, body, textBody, variables } = req.body;
+    const { name, subject, body, textBody, variables, category, preview } = req.body;
 
     const template = await prisma.emailTemplate.update({
       where: { id: req.params.id },
       data: {
-        name,
-        subject,
-        body,
-        textBody,
-        variables: variables ? JSON.stringify(variables) : undefined,
+        ...(name && { name }),
+        ...(subject !== undefined && { subject }),
+        ...(body && { body }),
+        ...(textBody !== undefined && { textBody }),
+        ...(variables && { variables: JSON.stringify(variables) }),
+        ...(category !== undefined && { category }),
+        ...(preview !== undefined && { preview }),
       },
     });
 

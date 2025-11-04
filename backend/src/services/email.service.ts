@@ -40,15 +40,46 @@ export const initializeEmailService = () => {
     return null;
   }
 
-  transporter = nodemailer.createTransport({
+  const isOffice365 = process.env.SMTP_HOST.includes('office365.com') || process.env.SMTP_HOST.includes('outlook.com');
+  const isSendGrid = process.env.SMTP_HOST.includes('sendgrid.net');
+  
+  // Configuração base do transporter
+  const transporterConfig: any = {
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
+    secure: false, // true para 465, false para outras portas
+    requireTLS: true, // Força uso de TLS
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-  });
+  };
+
+  // Configurações específicas para SendGrid
+  if (isSendGrid) {
+    // SendGrid usa TLS na porta 587
+    transporterConfig.secure = false;
+    transporterConfig.requireTLS = true;
+    transporterConfig.tls = {
+      rejectUnauthorized: true, // SendGrid usa certificados válidos
+    };
+    transporterConfig.connectionTimeout = 10000; // 10 segundos
+    transporterConfig.greetingTimeout = 5000; // 5 segundos
+    transporterConfig.socketTimeout = 30000; // 30 segundos
+  }
+
+  // Configurações adicionais para Office 365
+  if (isOffice365) {
+    transporterConfig.tls = {
+      ciphers: 'SSLv3',
+      rejectUnauthorized: false, // Para ambientes corporativos
+    };
+    transporterConfig.connectionTimeout = 60000; // 60 segundos
+    transporterConfig.greetingTimeout = 30000; // 30 segundos
+    transporterConfig.socketTimeout = 60000; // 60 segundos
+  }
+
+  transporter = nodemailer.createTransport(transporterConfig);
 
   return transporter;
 };
@@ -128,18 +159,18 @@ export const processTemplate = (template: string, variables: Record<string, stri
   return processed;
 };
 
-// Enviar email em massa (com rate limiting)
+// Enviar email em massa (com rate limiting e controle de quota)
 export const sendBulkEmails = async (
   contacts: Array<{ email: string; name: string; variables?: Record<string, string> }>,
   subject: string,
   template: string,
   campaignId?: string
 ) => {
-  const results = [];
-  const rateLimit = parseInt(process.env.EMAIL_RATE_LIMIT || '100');
-  const delay = (60 * 1000) / rateLimit; // Delay entre emails em ms
-
-  // Carregar contatos válidos do banco (opt-out, status)
+  // Verificar limite diário ANTES de enviar
+  const { trackEmailSent, getUsageStats } = await import('./channel-cost-tracker.service');
+  const emailStats = getUsageStats();
+  
+  // Filtrar apenas contatos válidos primeiro
   const allowedEmails = new Set<string>()
   const dbContacts = await prisma.contact.findMany({
     where: {
@@ -154,14 +185,59 @@ export const sendBulkEmails = async (
       allowedEmails.add(c.email)
     }
   }
+  
+  const validContacts = contacts.filter(c => allowedEmails.has(c.email));
+  const totalToSend = validContacts.length;
+  
+  // Verificar se ultrapassa o limite
+  if (emailStats.email.sent + totalToSend > emailStats.email.limit) {
+    const remaining = Math.max(0, emailStats.email.limit - emailStats.email.sent);
+    const errorMessage = `⚠️ LIMITE DIÁRIO DO SENDGRID ATINGIDO! 
+    
+Você já enviou ${emailStats.email.sent} de ${emailStats.email.limit} emails hoje.
+Tentando enviar mais ${totalToSend} emails, mas só restam ${remaining} disponíveis.
 
-  for (let i = 0; i < contacts.length; i++) {
-    const contact = contacts[i];
+Limite reseta em: ${new Date(emailStats.email.resetAt).toLocaleString('pt-BR')}
 
-    // Suprimir opt-out/invalidos
-    if (!allowedEmails.has(contact.email)) {
-      results.push({ email: contact.email, success: false, suppressed: true })
-      continue
+Para aumentar o limite, faça upgrade do plano SendGrid ou aguarde até amanhã.`;
+
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+  
+  // Alerta se estiver perto do limite
+  if (emailStats.email.percentageUsed >= 70) {
+    console.warn(`⚠️ ATENÇÃO: ${Math.round(emailStats.email.percentageUsed)}% do limite diário usado (${emailStats.email.sent}/${emailStats.email.limit})`);
+  }
+
+  const results = [];
+  const rateLimit = parseInt(process.env.EMAIL_RATE_LIMIT || '100');
+  const delay = (60 * 1000) / rateLimit; // Delay entre emails em ms
+
+  // Contatos válidos já foram filtrados acima
+  for (let i = 0; i < validContacts.length; i++) {
+    const contact = validContacts[i];
+    
+    // Verificar limite durante o envio (caso outro processo tenha usado)
+    const currentStats = getUsageStats();
+    if (currentStats.email.sent >= currentStats.email.limit) {
+      console.error(`⚠️ LIMITE ATINGIDO durante envio. Parando...`);
+      results.push({
+        email: contact.email,
+        success: false,
+        error: 'Limite diário do SendGrid atingido',
+        quotaExceeded: true,
+      });
+      // Continuar adicionando os restantes como falha
+      for (let j = i + 1; j < validContacts.length; j++) {
+        results.push({
+          email: validContacts[j].email,
+          success: false,
+          error: 'Limite diário do SendGrid atingido',
+          quotaExceeded: true,
+        });
+      }
+      break;
     }
 
     // Limite por domínio
@@ -266,7 +342,7 @@ export const sendBulkEmails = async (
       });
 
       // Rate limiting
-      if (i < contacts.length - 1) {
+      if (i < validContacts.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     } catch (error: any) {

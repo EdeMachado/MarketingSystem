@@ -32,6 +32,7 @@ import apiUsageRoutes from './routes/api-usage.routes';
 import seoRoutes from './routes/seo.routes';
 import autoPublishRoutes from './routes/auto-publish.routes';
 import channelCostsRoutes from './routes/channel-costs.routes';
+import { enrichmentRoutes } from './routes/enrichment.routes';
 
 dotenv.config();
 
@@ -79,6 +80,7 @@ app.use('/api/api-usage', apiUsageRoutes);
 app.use('/api/seo', seoRoutes);
 app.use('/api/auto-publish', autoPublishRoutes);
 app.use('/api/channel-costs', channelCostsRoutes);
+app.use('/api/enrichment', enrichmentRoutes);
 
 // Carregar campanhas agendadas na inicialização
 schedulerService.loadScheduledCampaigns().catch(console.error);

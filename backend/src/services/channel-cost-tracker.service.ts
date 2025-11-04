@@ -61,7 +61,7 @@ export const loadCostConfig = (): ChannelCostConfig => {
       monthlyLimit: 50, // $50/mês limite
     },
     email: {
-      limitPerDay: 500, // Gmail free limit
+      limitPerDay: parseInt(process.env.SENDGRID_DAILY_LIMIT || '100'), // SendGrid Free: 100/dia
     },
   };
 };
@@ -92,10 +92,11 @@ export const loadChannelUsage = (): ChannelUsage => {
   tomorrow.setHours(0, 0, 0, 0);
 
   // Uso padrão (zerado)
+  const config = loadCostConfig();
   return {
     email: {
       sentToday: 0,
-      limitPerDay: 500,
+      limitPerDay: config.email.limitPerDay,
       resetAt: tomorrow.toISOString(),
     },
     whatsapp: {

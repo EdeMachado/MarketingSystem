@@ -66,6 +66,69 @@ router.get('/:id/contacts', async (req, res, next) => {
   }
 });
 
+// Atualizar segmento
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { name, description, filters, type } = req.body;
+
+    const segment = await prisma.segment.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!segment) {
+      throw new AppError('Segmento não encontrado', 404);
+    }
+
+    // Aplicar filtros para contar contatos (se filtros foram fornecidos)
+    let contactCount = segment.contactCount;
+    if (filters) {
+      const contacts = await applyFilters(filters);
+      contactCount = contacts.length;
+    }
+
+    const updatedSegment = await prisma.segment.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+        ...(filters && { filters: JSON.stringify(filters) }),
+        ...(type && { type }),
+        ...(filters && { contactCount }),
+      },
+    });
+
+    res.json({ success: true, data: updatedSegment });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
+
+// Atualizar contagem de contatos
+router.patch('/:id/refresh-count', async (req, res, next) => {
+  try {
+    const segment = await prisma.segment.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!segment) {
+      throw new AppError('Segmento não encontrado', 404);
+    }
+
+    const filters = JSON.parse(segment.filters);
+    const contacts = await applyFilters(filters);
+    const contactCount = contacts.length;
+
+    const updatedSegment = await prisma.segment.update({
+      where: { id: req.params.id },
+      data: { contactCount },
+    });
+
+    res.json({ success: true, data: updatedSegment });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
+
 // Deletar segmento
 router.delete('/:id', async (req, res, next) => {
   try {

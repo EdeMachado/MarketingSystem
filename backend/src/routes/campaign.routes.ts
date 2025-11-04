@@ -187,14 +187,17 @@ router.post('/:id/execute', async (req, res, next) => {
       throw new AppError('Tipo de campanha não suportado para execução automática', 400);
     }
 
-    // Atualizar stats
-    await prisma.campaignStats.update({
-      where: { campaignId: campaign.id },
-      data: {
-        sent: result.success,
-        failed: result.failed,
-      },
-    });
+    // Atualizar stats (apenas para campanhas de email/whatsapp que retornam stats)
+    if (campaign.type === 'email' || campaign.type === 'whatsapp') {
+      const emailResult = result as { success: number; failed: number; results?: any[] };
+      await prisma.campaignStats.update({
+        where: { campaignId: campaign.id },
+        data: {
+          sent: emailResult.success || 0,
+          failed: emailResult.failed || 0,
+        },
+      });
+    }
 
     // Atualizar status para completada
     await prisma.campaign.update({
@@ -205,7 +208,43 @@ router.post('/:id/execute', async (req, res, next) => {
       },
     });
 
-    res.json({ success: true, data: result });
+    // Incluir informações sobre falhas no retorno (apenas para email/whatsapp)
+    let message = 'Campanha executada com sucesso!';
+    let failedDetails: any[] = [];
+    let quotaInfo: any = null;
+    
+    if ((campaign.type === 'email' || campaign.type === 'whatsapp') && result) {
+      const emailResult = result as { success: number; failed: number; results?: any[]; quota?: any };
+      failedDetails = emailResult.results?.filter((r: any) => !r.success && (r.email || r.phone)) || [];
+      
+      // Incluir info de quota se disponível
+      if (emailResult.quota) {
+        quotaInfo = emailResult.quota;
+      }
+      
+      if (emailResult.failed > 0) {
+        const failedItems = failedDetails.slice(0, 3).map((r: any) => r.email || r.phone).filter(Boolean);
+        message = `${emailResult.success} enviados, ${emailResult.failed} falha(s)${failedItems.length > 0 ? `. Item(s) com falha: ${failedItems.join(', ')}${failedDetails.length > 3 ? '...' : ''}` : ''}`;
+        
+        // Adicionar alerta de quota se estiver baixa
+        if (quotaInfo && quotaInfo.percentageUsed >= 70) {
+          message += `\n⚠️ ATENÇÃO: ${Math.round(quotaInfo.percentageUsed)}% do limite diário usado (${quotaInfo.sent}/${quotaInfo.limit} emails restantes)`;
+        }
+      } else {
+        message = `${emailResult.success} enviados com sucesso!`;
+        if (quotaInfo) {
+          message += ` (${quotaInfo.remaining} emails restantes hoje)`;
+        }
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      data: result,
+      message,
+      failedDetails: failedDetails.slice(0, 5), // Primeiros 5 para não sobrecarregar
+      quota: quotaInfo,
+    });
   } catch (error: any) {
     next(new AppError(error.message, 500));
   }

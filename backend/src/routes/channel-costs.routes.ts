@@ -13,9 +13,32 @@ const router = Router();
 router.get('/stats', async (req, res, next) => {
   try {
     const stats = getUsageStats();
+    const alerts = getChannelAlerts();
     res.json({
       success: true,
       data: stats,
+      alerts,
+    });
+  } catch (error: any) {
+    next(new AppError(error.message, 500));
+  }
+});
+
+// Obter apenas quota do SendGrid (email)
+router.get('/email/quota', async (req, res, next) => {
+  try {
+    const stats = getUsageStats();
+    res.json({ 
+      success: true, 
+      data: {
+        sent: stats.email.sent,
+        limit: stats.email.limit,
+        remaining: stats.email.remaining,
+        percentageUsed: Math.round(stats.email.percentageUsed),
+        resetAt: stats.email.resetAt,
+        status: stats.email.percentageUsed >= 90 ? 'critical' : 
+               stats.email.percentageUsed >= 70 ? 'warning' : 'ok',
+      }
     });
   } catch (error: any) {
     next(new AppError(error.message, 500));

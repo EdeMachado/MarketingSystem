@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { PrismaClient } from '@prisma/client';
 import { isValidEmail, normalizePhone } from '../utils/validators';
 import { enrichCompany, enrichContact, normalizeName, normalizeAddress } from './lead-enrichment.service';
@@ -191,7 +192,7 @@ export const searchCompaniesByRegion = async (params: CompanySearchParams): Prom
 };
 
 // Tentar encontrar email em um website
-const tryFindEmailFromWebsite = async (website: string): Promise<string | undefined> => {
+export const tryFindEmailFromWebsite = async (website: string): Promise<string | undefined> => {
   try {
     // Padrões comuns de páginas de contato
     const contactPages = [
@@ -211,16 +212,108 @@ const tryFindEmailFromWebsite = async (website: string): Promise<string | undefi
           },
         });
 
-        // Procurar por padrões de email
-        const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/g;
-        const emails = response.data.match(emailRegex);
-        
-        if (emails && emails.length > 0) {
-          // Retornar primeiro email válido
-          for (const email of emails) {
-            if (isValidEmail(email) && !email.includes('example') && !email.includes('test')) {
-              return email.toLowerCase();
+        // Procurar por padrões de email usando múltiplos métodos
+        const emailRegex = /[\w\.\-+]+@[\w\.\-]+\.[\w]{2,}/g;
+        const htmlContent = response.data.toString();
+        const foundEmails = new Set<string>();
+
+        // Método 1: Regex simples no HTML bruto
+        const emailsFromRegex = htmlContent.match(emailRegex) as string[] | null;
+        if (emailsFromRegex) {
+          emailsFromRegex.forEach(e => foundEmails.add(e.toLowerCase().trim()));
+        }
+
+        // Método 2: Cheerio - parsing HTML estruturado
+        try {
+          const $ = cheerio.load(htmlContent);
+          
+          // Buscar em links mailto:
+          $('a[href^="mailto:"]').each((i, el) => {
+            const href = $(el).attr('href');
+            if (href) {
+              const email = href.replace('mailto:', '').split('?')[0].toLowerCase().trim();
+              if (email) foundEmails.add(email);
             }
+          });
+
+          // Buscar em textos visíveis (priorizar elementos de contato)
+          const contactSelectors = [
+            '.contact', '.contato', '.contact-info', '.contact-us',
+            '#contact', '#contato', '#contact-info',
+            '[class*="contact"]', '[class*="contato"]',
+            '[id*="contact"]', '[id*="contato"]',
+          ];
+
+          contactSelectors.forEach(selector => {
+            try {
+              $(selector).find('*').each((i, el) => {
+                const text = $(el).text();
+                const matches = text.match(emailRegex);
+                if (matches) {
+                  matches.forEach(m => foundEmails.add(m.toLowerCase().trim()));
+                }
+              });
+            } catch (e) {
+              // Ignorar erros de seletor
+            }
+          });
+
+          // Buscar em todo o body se não encontrou em contato
+          if (foundEmails.size === 0) {
+            $('body').find('*').each((i, el) => {
+              const text = $(el).text();
+              const matches = text.match(emailRegex);
+              if (matches) {
+                matches.forEach(m => foundEmails.add(m.toLowerCase().trim()));
+              }
+            });
+          }
+
+          // Buscar em atributos data-*
+          $('[data-email], [data-contact], [data-info]').each((i, el) => {
+            const email = $(el).attr('data-email') || $(el).attr('data-contact') || $(el).attr('data-info');
+            if (email && email.includes('@')) {
+              const matches = email.match(emailRegex);
+              if (matches) {
+                matches.forEach(m => foundEmails.add(m.toLowerCase().trim()));
+              }
+            }
+          });
+
+        } catch (cheerioError) {
+          // Se Cheerio falhar, usar apenas regex
+          console.log(`    ⚠️  Erro ao processar com Cheerio: ${cheerioError}`);
+        }
+        
+        if (foundEmails.size > 0) {
+          // Filtrar emails válidos
+          const validEmails = Array.from(foundEmails)
+            .filter((e) => {
+              return isValidEmail(e) && 
+                     !e.includes('example') && 
+                     !e.includes('test') &&
+                     !e.includes('noreply') &&
+                     !e.includes('no-reply') &&
+                     !e.includes('@example') &&
+                     !e.endsWith('.png') &&
+                     !e.endsWith('.jpg') &&
+                     !e.endsWith('.gif') &&
+                     !e.endsWith('.css') &&
+                     !e.endsWith('.js');
+            });
+          
+          if (validEmails.length > 0) {
+            // Priorizar emails comuns de contato
+            const contactEmails = validEmails.filter(e => 
+              e.includes('contato') || 
+              e.includes('contact') || 
+              e.includes('info') ||
+              e.includes('comercial') ||
+              e.includes('vendas') ||
+              e.includes('atendimento')
+            );
+            
+            return contactEmails.length > 0 ? contactEmails[0] : validEmails[0];
           }
         }
       } catch {
@@ -238,14 +331,69 @@ const tryFindEmailFromWebsite = async (website: string): Promise<string | undefi
         },
       });
 
-      const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/g;
-      const emails = response.data.match(emailRegex);
-      
-      if (emails && emails.length > 0) {
-        for (const email of emails) {
-          if (isValidEmail(email) && !email.includes('example') && !email.includes('test')) {
-            return email.toLowerCase();
+      // Usar mesmo método melhorado da função acima
+      const emailRegex = /[\w\.\-+]+@[\w\.\-]+\.[\w]{2,}/g;
+      const htmlContent = response.data.toString();
+      const foundEmails = new Set<string>();
+
+      // Método 1: Regex simples
+      const emailsFromRegex = htmlContent.match(emailRegex) as string[] | null;
+      if (emailsFromRegex) {
+        emailsFromRegex.forEach(e => foundEmails.add(e.toLowerCase().trim()));
+      }
+
+      // Método 2: Cheerio
+      try {
+        const $ = cheerio.load(htmlContent);
+        
+        // Links mailto:
+        $('a[href^="mailto:"]').each((i, el) => {
+          const href = $(el).attr('href');
+          if (href) {
+            const email = href.replace('mailto:', '').split('?')[0].toLowerCase().trim();
+            if (email) foundEmails.add(email);
           }
+        });
+
+        // Textos visíveis
+        $('body').find('*').each((i, el) => {
+          const text = $(el).text();
+          const matches = text.match(emailRegex);
+          if (matches) {
+            matches.forEach(m => foundEmails.add(m.toLowerCase().trim()));
+          }
+        });
+      } catch (e) {
+        // Ignorar erro
+      }
+      
+      if (foundEmails.size > 0) {
+        const validEmails = Array.from(foundEmails)
+          .filter((e) => {
+            return isValidEmail(e) && 
+                   !e.includes('example') && 
+                   !e.includes('test') &&
+                   !e.includes('noreply') &&
+                   !e.includes('no-reply') &&
+                   !e.includes('@example') &&
+                   !e.endsWith('.png') &&
+                   !e.endsWith('.jpg') &&
+                   !e.endsWith('.gif') &&
+                   !e.endsWith('.css') &&
+                   !e.endsWith('.js');
+          });
+        
+        if (validEmails.length > 0) {
+          const contactEmails = validEmails.filter(e => 
+            e.includes('contato') || 
+            e.includes('contact') || 
+            e.includes('info') ||
+            e.includes('comercial') ||
+            e.includes('vendas') ||
+            e.includes('atendimento')
+          );
+          
+          return contactEmails.length > 0 ? contactEmails[0] : validEmails[0];
         }
       }
     } catch {
